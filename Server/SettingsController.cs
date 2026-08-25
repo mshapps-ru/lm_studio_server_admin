@@ -1,0 +1,92 @@
+using System.Net;
+using System.Text;
+using System.Text.Json;
+using LmStudioServerAdmin.Config;
+using LmStudioServerAdmin.Logging;
+
+namespace LmStudioServerAdmin.Server;
+
+public static class SettingsController
+{
+    private static readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = false };
+
+    public static void GetSettings(HttpListenerContext context, AppConfig config)
+    {
+        var response = JsonSerializer.Serialize(new
+        {
+            username = config.Username,
+            port = config.Port
+        }, _jsonOptions);
+        SendJsonResponse(context, HttpStatusCode.OK, response);
+    }
+
+    public static void UpdateSettings(HttpListenerContext context, AppConfig config)
+    {
+        try
+        {
+            using var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding);
+            var body = reader.ReadToEnd();
+            var newSettings = JsonSerializer.Deserialize<SettingsUpdate>(body, _jsonOptions);
+
+            if (newSettings == null)
+            {
+                SendJsonResponse(context, HttpStatusCode.BadRequest,
+                    JsonSerializer.Serialize(new { error = "Invalid request body" }, _jsonOptions));
+                return;
+            }
+
+            // Валидация
+            if (string.IsNullOrWhiteSpace(newSettings.Username))
+            {
+                SendJsonResponse(context, HttpStatusCode.BadRequest,
+                    JsonSerializer.Serialize(new { error = "Username cannot be empty" }, _jsonOptions));
+                return;
+            }
+
+            if (newSettings.Port < 1 || newSettings.Port > 65535)
+            {
+                SendJsonResponse(context, HttpStatusCode.BadRequest,
+                    JsonSerializer.Serialize(new { error = "Port must be between 1 and 65535" }, _jsonOptions));
+                return;
+            }
+
+            // Обновляем конфиг
+            config.Username = newSettings.Username;
+            config.Port = newSettings.Port;
+
+            if (!string.IsNullOrWhiteSpace(newSettings.Password))
+            {
+                config.Password = ConfigManager.HashPassword(newSettings.Password);
+            }
+
+            ConfigManager.Save(config);
+            Logger.Info("Settings updated successfully");
+
+            SendJsonResponse(context, HttpStatusCode.OK,
+                JsonSerializer.Serialize(new { success = true }, _jsonOptions));
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"Error updating settings: {ex.Message}", ex);
+            SendJsonResponse(context, HttpStatusCode.InternalServerError,
+                JsonSerializer.Serialize(new { error = "Failed to update settings" }, _jsonOptions));
+        }
+    }
+
+    private static void SendJsonResponse(HttpListenerContext context, HttpStatusCode statusCode, string json)
+    {
+        var buffer = Encoding.UTF8.GetBytes(json);
+        context.Response.StatusCode = (int)statusCode;
+        context.Response.ContentType = "application/json";
+        context.Response.ContentLength64 = buffer.Length;
+        context.Response.OutputStream.Write(buffer, 0, buffer.Length);
+        context.Response.OutputStream.Close();
+    }
+
+    private class SettingsUpdate
+    {
+        public string? Username { get; set; }
+        public string? Password { get; set; }
+        public int Port { get; set; }
+    }
+}

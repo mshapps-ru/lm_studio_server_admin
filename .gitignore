@@ -1,0 +1,43 @@
+# Python cache/build artifacts
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.gigacode/
+.kotlin/
+.gradle/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build outputs
+build/
+bin/
+obj/
+out/
+logs/
+*.class
+*.jar
+*.war
+*.ear
+
+# Config files with sensitive data
+.env
+.env.*
+user-config.json
+resources/
