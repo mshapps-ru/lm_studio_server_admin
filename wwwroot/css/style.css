@@ -35,6 +35,13 @@ body {
     display: none;
 }
 
+#login-screen {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
 /* Login */
 .login-card {
     background: var(--card-bg);
