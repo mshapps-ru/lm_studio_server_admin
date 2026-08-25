@@ -1,0 +1,29 @@
+# Backend API Structure
+
+## Overview
+The backend exposes a simple REST‑style HTTP API that is served by **HttpServer**. All endpoints are protected with a session token that is created on login and stored in memory.
+
+```
+POST   /api/login     – Authenticate user, returns { success, token }
+POST   /api/logout    – Invalidate session token, returns { success }
+GET    /api/status    – Current status of LM‑Studio Server (running/stopped)
+POST   /api/start     – Start the server process
+POST   /api/stop      – Stop the server process
+GET    /api/settings  – Retrieve current username & port
+PUT    /api/settings  – Update username, password or port
+```
+
+All endpoints that modify state (`/login`, `/logout`, `/start`, `/stop`, `/settings`) expect a JSON body and return JSON. Requests other than `/login` and `/logout` must include an `Authorization` header with the token **or** a cookie named `session`. The server validates the token via **AuthManager.TryValidateToken**.
+
+### Authentication Flow
+1. Client posts credentials to `/api/login`.
+2. If valid, `AuthManager.Login` creates a GUID‑based session token and stores it in `_sessions` with an expiry of 24 h.
+3. Token is returned to the client; the client should store it (header or cookie). The token is hashed if the stored password was plain text.
+4. Subsequent requests include `Authorization: Bearer <token>` header or a `session=<token>` cookie.
+5. `/api/logout` removes the session entry.
+
+### Status Endpoints
+- **/api/status** – Calls `LmsCommandExecutor.GetCachedStatus()` and returns status string + message.
+- **/api/start**, **/api/stop** – Wrap calls to `LmsCommandExecutor.StartServer()` / `.StopServer()`.
+
+> All responses are JSON with `Content‑Type: application/json`.
