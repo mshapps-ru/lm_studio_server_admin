@@ -58,6 +58,11 @@ const App = {
                 targetContent.classList.add('active');
             });
         });
+
+        // Activate the first tab by default on load
+        if (tabs.length > 0) {
+            tabs[0].click();
+        }
     },
 
     setupLogout() {
