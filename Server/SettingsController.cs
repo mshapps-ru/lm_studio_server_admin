@@ -84,15 +84,15 @@ public static class SettingsController
             ConfigManager.Save(config);
             Logger.Info("Settings updated successfully");
 
-            if (portChanged)
-            {
-                // Restart services to apply new port
-                Program.RestartServices();
-                Logger.Info("Service restarted due to port change.");
-            }
-
+            // Send response BEFORE restarting (server will be stopped)
             SendJsonResponse(context, HttpStatusCode.OK,
                 JsonSerializer.Serialize(new { success = true }, _jsonOptions));
+
+            if (portChanged)
+            {
+                Logger.Info("Service restarted due to port change.");
+                Program.RestartServices();
+            }
         }
         catch (Exception ex)
         {

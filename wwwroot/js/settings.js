@@ -68,34 +68,13 @@ const Settings = {
             if (data && data.success) {
                 const portWarning = document.getElementById('port-warning');
                 if (port !== this._originalPort) {
-                    Toast.show('Settings saved. Port change requires server restart.', 'success');
-                    // Redirect to new port after short delay
-                    // Redirect after short delay so server can restart
-                    // Wait a bit to allow server restart, then redirect
-                    // Poll until the new port is reachable before redirecting
-                    // Simple redirect after short delay to allow server restart
-                    // Poll until the new port responds, then redirect
-                    const pollPort = () => {
-                        fetch(`http://${window.location.hostname}:${port}/api/status`, { method: 'GET' })
-                            .then(res => {
-                                if (res.ok) {
-                                    const url = new URL(window.location);
-                                    url.port = port.toString();
-                                    window.location.href = url.toString();
-                                }
-                            }).catch(() => {});
-                    };
-                    let attempts = 0;
-                    const intervalId = setInterval(() => {
-                        if (attempts++ > 20) { // after ~10 sec, give up and redirect anyway
-                            clearInterval(intervalId);
-                            const url = new URL(window.location);
-                            url.port = port.toString();
-                            window.location.href = url.toString();
-                        } else {
-                            pollPort();
-                        }
-                    }, 500);
+                    Toast.show('Settings saved. Redirecting to new port...', 'success');
+                    // Wait for server to restart on new port, then redirect
+                    setTimeout(() => {
+                        const url = new URL(window.location);
+                        url.port = port.toString();
+                        window.location.href = url.toString();
+                    }, 5000);
                 } else {
                     Toast.show('Settings saved', 'success');
                 }
