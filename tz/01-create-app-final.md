@@ -1,128 +1,144 @@
-# Final Implementation Overview
+# План реализации LMStudioServerAdmin в текущем виде
 
-This document summarizes the **final, production‑ready** implementation of the LM Studio Server Admin application. It reflects the current state after all bug fixes and architectural improvements described in previous steps.
-
----
-
-## 1. Project Summary
-
-- **Language & Runtime:** C# (.NET 8+)
-- **Entry Point:** `Program.cs` – can run as a console app or Windows Service (via `-service`).
-- **HTTP Layer:** Lightweight `HttpListener`‑based server with static file handling and simple token‑based authentication.
-- **SPA UI:** Vanilla JS/HTML/CSS. Two tabs (`Home`, `Settings`) with automatic status polling and configuration editing.
-- **Configuration:** Stored in `config.json`. Passwords are hashed with SHA‑256 on first login.
-- **LM Studio Integration:** Commands executed through external CLI (`lms server start/stop/status`). Status is cached and refreshed every 10 seconds.
-- **Logging:** Simple file logger (`logs/app.log`) with INFO/WARN/ERROR levels.
+> **Цель** – пошагово построить приложение администрирования LM Studio Server, которое уже реализовано и содержит все исправления из предыдущих этапов. Ниже представлен детальный план действий, разделённый на логические блоки.
 
 ---
 
-## 2. File Structure (Key Files)
+## 1. Инициализация проекта
 
+| Шаг | Действие | Комментарий |
+|-----|----------|-------------|
+| 1.1 | Создать решение и проект консольного приложения `LmStudioServerAdmin` в .NET 8+ | `dotnet new console -o LmStudioServerAdmin -n LmStudioServerAdmin` |
+| 1.2 | Добавить пакеты: `Microsoft.Extensions.Hosting.WindowsServices`, `Newtonsoft.Json` (или System.Text.Json) | Для работы как служба и JSON‑обработки |
+| 1.3 | Создать структуру каталогов согласно **архитектуре** (см. ниже). |
+| 1.4 | Сгенерировать модель конфигурации `AppConfig.cs` с полями `Username`, `Password`, `Port`. |
+| 1.5 | Реализовать `ConfigManager.cs`: чтение/запись `config.json`, хеширование пароля SHA‑256 при первом входе. |
+| 1.6 | В `Program.cs` добавить обработку параметра `-service` и логику запуска в консольном / сервис‑режиме. |
+| 1.7 | Создать начальный файл `config.json` со значениями по умолчанию (`admin`, `admin`, `7778`). |
+
+---
+
+## 2. Логирование
+
+* Создайте простую запись в файл `logs/app.log`. 
+* Включите уровни: INFO, WARN, ERROR.
+* Весь ключевой код (запуск, ошибки, статус LM, изменения конфигурации) должен писать сообщения.
+
+---
+
+## 3. HTTP‑сервер и маршрутизация
+
+| Шаг | Действие |
+|-----|----------|
+| 3.1 | Реализовать `HttpServer.cs` на базе `HttpListener`. 
+| 3.2 | Настроить обработку следующих путей:
+|     | - `/api/login`, `/api/logout` (не защищённые)
+|     | - `/api/status`, `/api/start`, `/api/stop`, `/api/settings` (защищённые)
+|     | - статические файлы из `wwwroot` (`.html`, `.css`, `.js`). |
+| 3.3 | Вынести проверку токена в отдельный метод (`AuthManager.TryValidateToken`). |
+
+---
+
+## 4. Аутентификация и сессии
+
+* Хранить пароль как SHA‑256 + Base64.
+* При первом успешном логине – перезаписать пароль хешем.
+* Генерировать уникальный токен (GUID), хранить его в памяти до истечения 24 ч.
+* Токен передавать через `Authorization: Bearer <token>` header либо cookie `session`.
+
+---
+
+## 5. Управление LM Studio Server
+
+| Шаг | Действие |
+|-----|----------|
+| 5.1 | В `LmsCommandExecutor.cs` реализовать методы:
+|     | - `GetStatus()` → `lms server status`
+|     | - `StartServer()` → `lms server start`
+|     | - `StopServer()` → `lms server stop`
+| 5.2 | Кэшировать статус в поле `_cachedStatus`.
+| 5.3 | При каждом вызове `GetStatus()` обновлять кэш и возвращать его.
+
+---
+
+## 6. SPA – пользовательский интерфейс
+
+### 6.1 Структура файлов (wwwroot)
 ```
-LmStudioServerAdmin/
-├── LmStudioServerAdmin.csproj          # .NET project definition
-├── Program.cs                          # Main entry point, service logic
-├── Config/
-│   ├── AppConfig.cs                    # Settings model
-│   └── ConfigManager.cs                # Load / save config.json
-├── Logging/
-│   └── Logger.cs                       # Simple file logger
-├── Server/
-│   ├── HttpServer.cs                  # HTTP listener, routing, auth
-│   ├── AuthManager.cs                 # Session token handling & login/logout
-│   ├── HomeController.cs              # /api/status, /api/start, /api/stop
-│   └── SettingsController.cs          # /api/settings GET/PUT
-├── Commands/
-│   └── LmsCommandExecutor.cs         # Execute LM Studio CLI commands
-├── Service/
-│   └── StatusChecker.cs              # Background status polling (optional)
-└── wwwroot/                           # SPA assets
-    ├── index.html                     # Login + tabbed UI
-    ├── css/style.css                  # Basic styling, no fixed display on login-screen
-    └── js/
-        ├── app.js                    # SPA bootstrap & state handling
-        ├── auth.js                   # Auth logic (login/logout)
-        ├── home.js                   # Home tab actions
-        └── settings.js               # Settings form handling
+wwwroot/
+├── index.html          # Главная страница: login + tabs
+├── css/style.css        # Стили, без жесткой установки display:flex на экран входа
+└── js/
+    ├── app.js          # Инициализация SPA, переключение экранов
+    ├── auth.js         # Login/Logout логика
+    ├── home.js         # Текущий статус и кнопки Start/Stop
+    └── settings.js     # Форма настроек (username, password, port)
 ```
+### 6.2 login‑screen
+* По умолчанию скрыт классом `.hidden`.
+* После успешного логина удаляется `display:none` и вызывается `showApp()`.
+### 6.3 app‑screen
+* Две вкладки: **Home** (получает статус, управляет сервером) и **Settings** (редактирует конфиг).
+* Кнопка **Exit** очищает токен из localStorage и возвращает к экрану login.
+### 6.4 Общий API‑обёртчик
+```js
+async function apiFetch(url, opts={}){...}
+```
+* Автоматически добавляет заголовок `Authorization` из token.
+* Обрабатывает ошибки (401 → logout).
 
 ---
 
-## 3. Key Implementations
+## 7. Настройки и кэширование конфигурации
 
-### 3.1 Program.cs
-- Detects `-service` flag.
-- Initializes `HttpServer`, `StatusChecker`, and loads configuration via `ConfigManager`.
-- Uses `Console.ReadLine()` for console mode, manual `ManualResetEvent` for service mode.
-
-### 3.2 Config Management
-- **AppConfig** holds `Username`, `Password`, `Port` with defaults.
-- **ConfigManager** reads/writes JSON, hashes plain‑text passwords on first login and persists the hash.
-
-### 3.3 Logging
-- `Logger.cs` writes to `logs/app.log`. Uses simple timestamped lines.
-
-### 3.4 HTTP Server & Auth
-- `HttpServer` listens on the configured port using `HttpListener`.
-- Handles `/api/login`, `/api/logout`, protected `/api/*` endpoints, and serves static files.
-- Token extraction supports `Authorization: Bearer <token>` header or `authToken` cookie.
-- **AuthManager** manages an in‑memory session dictionary with 24‑hour expiry; hashes passwords using SHA‑256.
-
-### 3.5 LM Studio Commands
-- `LmsCommandExecutor` executes external `lms` CLI via `Process.Start`. Caches status and exposes `GetStatus()`, `StartServer()`, `StopServer()`.
-
-### 3.6 SPA Logic (wwwroot)
-- **index.html** defines two screens: login (`#login-screen`) and app (`#app-screen`). The login screen is hidden by default using the `.hidden` CSS class.
-- **style.css** no longer forces `display:flex` on the login screen; it relies solely on `.hidden`.
-- **app.js**:
-  - Initializes after `DOMContentLoaded`.
-  - `showLogin()` shows login and hides app.
-  - `showApp()` adds `.hidden` to login screen, removes from app, then initializes Home & Settings tabs.
-  - Provides generic `apiFetch` with token header and error handling.
-- **auth.js** handles form submission, stores token in localStorage, shows success toast via `Toast.show`.
-- **home.js** polls status every 10 s; start/stop buttons call `/api/start` & `/api/stop`.
-- **settings.js** loads current settings, validates input, sends PUT to `/api/settings`, and warns if port changes need restart.
+| Шаг | Действие |
+|-----|----------|
+| 7.1 | В `SettingsController.cs`: GET – возвращает username+port, POST/PUT – обновляет только те поля, которые переданы.
+| 7.2 | При изменении порта клиент получает предупреждение “Порт изменён. Требуется перезапуск.” |
+| 7.3 | После изменения пароля конфиг сохраняется с новым хешем.
 
 ---
 
-## 4. Bug Fixes & Improvements
+## 8. Фоновый чекер статуса (опционально)
 
-| Issue | Fix |
-|-------|-----|
-| Login screen remained visible after successful login (white page) | Removed hard‑coded `display:flex` from CSS; added explicit `style.display='none'` and `.hidden` handling in JS.
-| SPA didn't bootstrap until DOM ready | Added `DOMContentLoaded` listener to call `App.init()`.
-| Token persistence across sessions | Stored token in localStorage and set Authorization header on every API request.
-| Configuration file not created at first run | `ConfigManager.Load()` creates default config if missing.
-| Password stored in plain text | On successful login, password is hashed and config updated automatically.
+* Создайте `StatusChecker.cs` – таймер, каждые 60 с вызывает `GetStatus()` и обновляет кэш.
+* Для простоты можно обойтись без отдельного сервиса: использовать polling в `home.js` с интервалом 10 с.
 
 ---
 
-## 5. Future Enhancements (Optional)
+## 9. Тесты и CI (опционально)
 
-1. **HTTPS Support** – switch to Kestrel with TLS or proxy through a reverse proxy.
-2. **Persisted Sessions** – move session store from memory to file/DB for service restarts.
-3. **Unit Tests** – add tests for `AuthManager`, `ConfigManager`, and API endpoints using `HttpClient`.
-4. **Docker Packaging** – create a lightweight Dockerfile using `dotnet publish -r linux-x64 --self-contained false`.
-5. **Logging Rotation** – integrate Serilog or similar to rotate logs automatically.
+1. Unit‑тесты для `AuthManager`, `ConfigManager`. 
+2. Интеграционные тесты, запускающие HttpServer в фоне и проверяющие API.
+3. Настроить GitHub Actions: сборка + тесты на Windows.
 
 ---
 
-## 6. Usage
+## 10. Финальная сборка
+
+* В `Program.cs` вызвать `StartServices()` → создаёт `HttpServer`, `StatusChecker`. 
+* При завершении программы вызывается `StopServices()`. 
+* Для публикации: `dotnet publish -c Release -r win-x64 --self-contained false /p:PublishSingleFile=true`.
+
+---
+
+## 11. Как развернуть
 
 ```bash
-# Console mode (default)
+# Консольный запуск (по умолчанию)
 dotnet run
-# Windows Service mode
+# Запуск как Windows Service
 LmStudioServerAdmin.exe -service
 ```
 
-Navigate to `http://localhost:<port>/` in a browser, login with the credentials from `config.json`. Use the tabs to view status or edit settings.
+Откройте браузер: `http://localhost:<Port>/`. Введите логин/пароль из `config.json`.
 
 ---
 
-## 7. Key Takeaways
-- Keep UI logic simple and vanilla; avoid unnecessary CSS overrides.
-- Explicitly manage element visibility (`display: none`) when toggling between screens.
-- Bootstrap SPA after DOM is ready to ensure all elements exist.
-- Persist sensitive data (passwords) securely – hash on first use.
-- Use clear separation of concerns: configuration, HTTP, authentication, command execution, UI.
+## 12. Ключевые моменты, которые стоит помнить
+- **UI**: всегда проверяйте наличие элементов до манипуляций; используйте `.hidden` для скрытия экранов.
+- **Авторизация**: храните токен в localStorage и добавляйте его в каждый запрос.
+- **Пароли**: хешируйте только один раз при первом успешном входе, сохраняйте хеш в конфиге.
+- **Статус LM**: кэшировать результат и обновлять по таймеру или при каждом вызове API.
+- **Порт**: изменение порта требует перезапуска сервера; UI должно сообщать об этом пользователю.
+
