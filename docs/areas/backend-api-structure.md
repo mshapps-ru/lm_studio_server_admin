@@ -10,7 +10,16 @@ GET    /api/status    – Current status of LM‑Studio Server (running/stopped)
 POST   /api/start     – Start the server process
 POST   /api/stop      – Stop the server process
 GET    /api/settings  – Retrieve current username & port
-PUT    /api/settings  – Update username, password or port
+PUT    /api/settings  – Update username (optional), password (optional) and/or port.
+
+**Payload example**:
+```
+{
+    "password": "newPassword",   // optional; plain text. Server will hash it.
+    "port": 8888                  // optional; integer between 1‑65535
+}
+```
+If a field is omitted or empty (e.g., `"password":""`), the existing value remains unchanged.
 ```
 
 All endpoints that modify state (`/login`, `/logout`, `/start`, `/stop`, `/settings`) expect a JSON body and return JSON. Requests other than `/login` and `/logout` must include an `Authorization` header with the token **or** a cookie named `session`. The server validates the token via **AuthManager.TryValidateToken**.

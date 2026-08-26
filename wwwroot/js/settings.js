@@ -29,7 +29,7 @@ const Settings = {
         try {
             const data = await App.apiFetch('/api/settings');
             if (data) {
-                document.getElementById('settings-username').value = data.username || '';
+                // Username is not editable in settings
                 document.getElementById('settings-port').value = data.port || 7778;
                 this._originalPort = data.port;
             }
@@ -39,25 +39,30 @@ const Settings = {
     },
 
     async saveSettings() {
-        const username = document.getElementById('settings-username').value.trim();
         const password = document.getElementById('settings-password').value;
-        const port = parseInt(document.getElementById('settings-port').value);
+        const confirmPassword = document.getElementById('settings-password-confirm').value;
+        let portVal = parseInt(document.getElementById('settings-port').value);
+        if (isNaN(portVal)) {
+            Toast.show('Port must be a number', 'error');
+            return;
+        }
+        const port = portVal;
 
         // Validation
-        if (!username) {
-            Toast.show('Username cannot be empty', 'error');
+        if (port < 1 || port > 65535) {
+            Toast.show('Port must be between 1 and 65535', 'error');
             return;
         }
 
-        if (!port || port < 1 || port > 65535) {
-            Toast.show('Port must be between 1 and 65535', 'error');
+        if ((password && !confirmPassword) || (confirmPassword && password !== confirmPassword)) {
+            Toast.show('Passwords do not match', 'error');
             return;
         }
 
         try {
             const data = await App.apiFetch('/api/settings', {
                 method: 'PUT',
-                body: JSON.stringify({ username, password, port })
+                body: JSON.stringify({ password, port })
             });
 
             if (data && data.success) {
@@ -69,6 +74,7 @@ const Settings = {
                 }
                 this._originalPort = port;
                 document.getElementById('settings-password').value = '';
+                document.getElementById('settings-password-confirm').value = '';
             }
         } catch (e) {
             // Error already handled in apiFetch

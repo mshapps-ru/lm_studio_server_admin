@@ -8,7 +8,11 @@ namespace LmStudioServerAdmin.Server;
 
 public static class SettingsController
 {
-    private static readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = false };
+    private static readonly JsonSerializerOptions _jsonOptions = new()
+{
+    WriteIndented = false,
+    PropertyNameCaseInsensitive = true
+};
 
     public static void GetSettings(HttpListenerContext context, AppConfig config)
     {
@@ -26,7 +30,9 @@ public static class SettingsController
         {
             using var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding);
             var body = reader.ReadToEnd();
+            Logger.Info("Update settings request body: " + body);
             var newSettings = JsonSerializer.Deserialize<SettingsUpdate>(body, _jsonOptions);
+            Logger.Info($"Parsed port: {newSettings?.Port}");
 
             if (newSettings == null)
             {
@@ -35,29 +41,44 @@ public static class SettingsController
                 return;
             }
 
-            // Валидация
-            if (string.IsNullOrWhiteSpace(newSettings.Username))
-            {
-                SendJsonResponse(context, HttpStatusCode.BadRequest,
-                    JsonSerializer.Serialize(new { error = "Username cannot be empty" }, _jsonOptions));
-                return;
-            }
-
-            if (newSettings.Port < 1 || newSettings.Port > 65535)
+            // Validate port
+            int portToSet = newSettings.Port; 
+            if (portToSet == 0) portToSet = config.Port; // keep existing if not provided
+            if (portToSet < 1 || portToSet > 65535)
             {
                 SendJsonResponse(context, HttpStatusCode.BadRequest,
                     JsonSerializer.Serialize(new { error = "Port must be between 1 and 65535" }, _jsonOptions));
                 return;
             }
 
-            // Обновляем конфиг
-            config.Username = newSettings.Username;
-            config.Port = newSettings.Port;
+            var oldPort = config.Port;
+            var oldUsername = config.Username;
 
+            // Update username if provided
+            if (!string.IsNullOrWhiteSpace(newSettings.Username))
+                config.Username = newSettings.Username;
+
+            // Update port
+            config.Port = portToSet;
+
+            bool passwordChanged = false;
             if (!string.IsNullOrWhiteSpace(newSettings.Password))
             {
-                config.Password = ConfigManager.HashPassword(newSettings.Password);
+                var newHash = ConfigManager.HashPassword(newSettings.Password);
+                if (config.Password != newHash)
+                {
+                    config.Password = newHash;
+                    passwordChanged = true;
+                }
             }
+
+            // Log changes
+            if (oldPort != config.Port)
+                Logger.Info($"Port changed from {oldPort} to {config.Port}");
+            if (!string.IsNullOrWhiteSpace(newSettings.Username) && oldUsername != config.Username)
+                Logger.Info($"Username changed from {oldUsername} to {config.Username}");
+            if (passwordChanged)
+                Logger.Info("Password changed");
 
             ConfigManager.Save(config);
             Logger.Info("Settings updated successfully");
