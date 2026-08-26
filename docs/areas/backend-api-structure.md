@@ -27,7 +27,7 @@ GET    /v1/* /api/v1/*            – Proxy requests to LM Studio Server
 If a field is omitted or empty (e.g., `"password":""`), the existing value remains unchanged.
 ```
 
-All endpoints that modify state (`/login`, `/logout`, `/start`, `/stop`, `/settings`) expect a JSON body and return JSON. Requests other than `/login` and `/logout` must include an `Authorization: Bearer <token>` header or a cookie named `session`. The server validates the token via **AuthManager.TryValidateToken**.
+All endpoints that modify state (`/login`, `/logout`, `/start`, `/stop`, `/settings`) expect a JSON body and return JSON. Requests other than `/login` and `/logout` must include an `Authorization: Bearer <token>` header; if not present, the request falls back to checking a cookie named `token`. If neither is supplied, the request is unauthorized. The session token is validated via `AuthManager.TryValidateToken`.
 
 ### Status response format
 The `/api/status` endpoint returns a JSON object:
@@ -43,7 +43,7 @@ The `status` field is always lower‑cased. The `message` provides a friendly de
 1. Client posts credentials to `/api/login`.
 2. If valid, `AuthManager.Login` creates a GUID‑based session token and stores it in `_sessions` with an expiry of 24 h.
 3. Token is returned to the client; the client should store it (header or cookie). The token is hashed if the stored password was plain text.
-4. Subsequent requests include `Authorization: Bearer <token>` header or a `session=<token>` cookie.
+4. Subsequent requests include `Authorization: Bearer <token>` header or a cookie named `token`.
 5. `/api/logout` removes the session entry.
 
 ### Status Endpoints

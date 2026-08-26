@@ -4,7 +4,7 @@ This repository implements a lightweight **LM Studio Server Admin** utility. It 
 
 ## Core Components
 - **HttpServer** – Wraps `System.Net.HttpListener` to handle REST endpoints.
-- **AuthManager** – In‑memory session token management with SHA‑256 hashed passwords.
+- **AuthManager** – In‑memory session token management using SHA‑256 hashed passwords. The service issues a Bearer token on login that can be sent in the `Authorization` header or stored in a cookie named `token`.
 - **ConfigManager** – Persist configuration (username, password hash, port, LM Studio port, bind address) in `config.json` located next to the executable.
 - **LmsCommandExecutor** – Executes external commands such as starting or stopping LM‑Studio via its command line interface. Auto-detects the LM Studio Server port from `lms server status` output.
 - **LmStudioProxyController** – Proxies API requests (`/v1/*`, `/api/v1/*`) to the LM Studio Server, enabling remote access through the admin panel.
