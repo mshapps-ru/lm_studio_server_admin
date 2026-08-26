@@ -1,6 +1,8 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using LmStudioServerAdmin.Commands;
 using LmStudioServerAdmin.Config;
 using LmStudioServerAdmin.Logging;
 
@@ -22,6 +24,72 @@ public static class SettingsController
             port = config.Port
         }, _jsonOptions);
         SendJsonResponse(context, HttpStatusCode.OK, response);
+    }
+
+    public static void GetLmStudioSettings(HttpListenerContext context, AppConfig config)
+    {
+        var response = JsonSerializer.Serialize(new
+        {
+            lmStudioPort = config.LmStudioPort,
+            bindAddress = config.BindAddress
+        }, _jsonOptions);
+        SendJsonResponse(context, HttpStatusCode.OK, response);
+    }
+
+    public static void AutoDetectLmStudioPort(HttpListenerContext context)
+    {
+        var success = LmsCommandExecutor.TryAutoDetectLmStudioPort();
+        var port = LmsCommandExecutor.GetLmStudioPort();
+
+        var response = JsonSerializer.Serialize(new
+        {
+            success = success,
+            port = port
+        }, _jsonOptions);
+
+        SendJsonResponse(context, success ? HttpStatusCode.OK : HttpStatusCode.NotFound, response);
+    }
+
+    public static void UpdateLmStudioSettings(HttpListenerContext context, AppConfig config)
+    {
+        try
+        {
+            using var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding);
+            var body = reader.ReadToEnd();
+            var newSettings = JsonSerializer.Deserialize<LmStudioSettingsUpdate>(body, _jsonOptions);
+
+            if (newSettings == null)
+            {
+                SendJsonResponse(context, HttpStatusCode.BadRequest,
+                    JsonSerializer.Serialize(new { error = "Invalid request body" }, _jsonOptions));
+                return;
+            }
+
+            // Update LM Studio port if provided
+            if (newSettings.LmStudioPort > 0)
+            {
+                config.LmStudioPort = newSettings.LmStudioPort;
+                LmsCommandExecutor.SetLmStudioPort(newSettings.LmStudioPort);
+            }
+
+            // Update bind address if provided
+            if (!string.IsNullOrWhiteSpace(newSettings.BindAddress))
+            {
+                config.BindAddress = newSettings.BindAddress;
+            }
+
+            ConfigManager.Save(config);
+            Logger.Info("LM Studio settings updated successfully");
+
+            SendJsonResponse(context, HttpStatusCode.OK,
+                JsonSerializer.Serialize(new { success = true }, _jsonOptions));
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"Error updating LM Studio settings: {ex.Message}", ex);
+            SendJsonResponse(context, HttpStatusCode.InternalServerError,
+                JsonSerializer.Serialize(new { error = "Failed to update LM Studio settings" }, _jsonOptions));
+        }
     }
 
     public static void UpdateSettings(HttpListenerContext context, AppConfig config)
@@ -118,5 +186,14 @@ public static class SettingsController
         public string? Username { get; set; }
         public string? Password { get; set; }
         public int Port { get; set; }
+    }
+
+    private class LmStudioSettingsUpdate
+    {
+        [JsonPropertyName("lmStudioPort")]
+        public int LmStudioPort { get; set; }
+
+        [JsonPropertyName("bindAddress")]
+        public string? BindAddress { get; set; }
     }
 }

@@ -17,8 +17,11 @@ public class HttpServer : IDisposable
     {
         _config = config;
         _listener = new HttpListener();
-        _listener.Prefixes.Add($"http://localhost:{config.Port}/");
-        Logger.Info($"HttpServer configured on port {config.Port}");
+
+        // HttpListener на Windows не поддерживает 0.0.0.0 — используем + для всех IPv4
+        var prefix = $"http://{(config.BindAddress == "0.0.0.0" ? "+" : config.BindAddress)}:{config.Port}/";
+        _listener.Prefixes.Add(prefix);
+        Logger.Info($"HttpServer configured on {config.BindAddress}:{config.Port}");
     }
 
     public void Start()
@@ -140,6 +143,13 @@ public class HttpServer : IDisposable
                 return;
             }
 
+            // LM Studio Info
+            if (path == "/api/lmstudio/info" && method == "GET")
+            {
+                HomeController.GetLmStudioInfo(context, _config);
+                return;
+            }
+
             // Settings API
             if (path == "/api/settings" && method == "GET")
             {
@@ -150,6 +160,32 @@ public class HttpServer : IDisposable
             if (path == "/api/settings" && method == "PUT")
             {
                 SettingsController.UpdateSettings(context, _config);
+                return;
+            }
+
+            // LM Studio Settings API
+            if (path == "/api/settings/lmstudio" && method == "GET")
+            {
+                SettingsController.GetLmStudioSettings(context, _config);
+                return;
+            }
+
+            if (path == "/api/settings/lmstudio" && method == "PUT")
+            {
+                SettingsController.UpdateLmStudioSettings(context, _config);
+                return;
+            }
+
+            if (path == "/api/settings/lmstudio/detect" && method == "POST")
+            {
+                SettingsController.AutoDetectLmStudioPort(context);
+                return;
+            }
+
+            // LM Studio Proxy
+            if (path.StartsWith("/api/v1/") || path.StartsWith("/v1/"))
+            {
+                LmStudioProxyController.HandleProxyRequest(context, _config);
                 return;
             }
 

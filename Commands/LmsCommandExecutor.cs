@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 using LmStudioServerAdmin.Logging;
 
 namespace LmStudioServerAdmin.Commands;
@@ -14,6 +15,7 @@ public enum LmsStatus
 public static class LmsCommandExecutor
 {
     private static LmsStatus _cachedStatus = LmsStatus.Unknown;
+    private static int _cachedLmStudioPort = 1234;
     private static readonly object _lock = new();
 
     public static LmsStatus GetStatus()
@@ -40,7 +42,7 @@ public static class LmsCommandExecutor
                 var error = process?.StandardError.ReadToEnd() ?? "";
 
                 Logger.Info($"lms server status output: [{output}]");
-                Logger.Info($"lms server status error: [{error}] ");
+                Logger.Info($"lms server status error: [{error}]");
 
                 if (process != null && process.HasExited && process.ExitCode == 0)
                 {
@@ -60,6 +62,14 @@ public static class LmsCommandExecutor
                     else
                     {
                         _cachedStatus = LmsStatus.Unknown;
+                    }
+
+                    // Парсим порт из вывода
+                    var portMatch = Regex.Match(output, @"port[\s:]+(\d+)", RegexOptions.IgnoreCase);
+                    if (portMatch.Success && int.TryParse(portMatch.Groups[1].Value, out var port) && port > 0)
+                    {
+                        _cachedLmStudioPort = port;
+                        Logger.Info($"Detected LM Studio port from output: {_cachedLmStudioPort}");
                     }
                 }
                 else
@@ -169,5 +179,67 @@ public static class LmsCommandExecutor
     {
         lock (_lock)
             return _cachedStatus;
+    }
+
+    public static int GetLmStudioPort()
+    {
+        lock (_lock)
+            return _cachedLmStudioPort;
+    }
+
+    public static void SetLmStudioPort(int port)
+    {
+        lock (_lock)
+        {
+            _cachedLmStudioPort = port;
+            Logger.Info($"LM Studio port set to: {port}");
+        }
+    }
+
+    public static bool TryAutoDetectLmStudioPort()
+    {
+        lock (_lock)
+        {
+            var status = GetStatus();
+            if (status == LmsStatus.Running)
+            {
+                // GetStatus уже распарсил порт из вывода
+                if (_cachedLmStudioPort > 0 && _cachedLmStudioPort != 1234)
+                {
+                    return true;
+                }
+                // Если порт не был распарсен, но сервер запущен — пробуем ещё раз
+                try
+                {
+                    var startInfo = new ProcessStartInfo
+                    {
+                        FileName = "lms",
+                        Arguments = "server status",
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+
+                    using var process = Process.Start(startInfo);
+                    if (process != null)
+                        process.WaitForExit(10000);
+
+                    var output = process?.StandardOutput.ReadToEnd() ?? "";
+                    var portMatch = Regex.Match(output, @"port[\s:]+(\d+)", RegexOptions.IgnoreCase);
+                    if (portMatch.Success && int.TryParse(portMatch.Groups[1].Value, out var port) && port > 0)
+                    {
+                        _cachedLmStudioPort = port;
+                        Logger.Info($"Auto-detected LM Studio port: {port}");
+                        return true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error($"Error auto-detecting LM Studio port: {ex.Message}", ex);
+                }
+            }
+            return false;
+        }
     }
 }

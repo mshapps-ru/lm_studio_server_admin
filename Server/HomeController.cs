@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using LmStudioServerAdmin.Commands;
 using LmStudioServerAdmin.Logging;
 
@@ -67,5 +68,52 @@ public static class HomeController
         context.Response.ContentLength64 = buffer.Length;
         context.Response.OutputStream.Write(buffer, 0, buffer.Length);
         context.Response.OutputStream.Close();
+    }
+
+    public static void GetLmStudioInfo(HttpListenerContext context, Config.AppConfig config)
+    {
+        var lmStudioPort = LmsCommandExecutor.GetLmStudioPort();
+        var currentStatus = LmsCommandExecutor.GetStatus();
+
+        // Получаем модель — пробуем через API
+        string currentModel = "N/A";
+        try
+        {
+            var modelsRequest = (HttpWebRequest)WebRequest.Create($"http://localhost:{lmStudioPort}/v1/models");
+            using var modelsResponse = (HttpWebResponse)modelsRequest.GetResponse();
+            using var reader = new StreamReader(modelsResponse.GetResponseStream());
+            var modelsJson = reader.ReadToEnd();
+            var models = JsonSerializer.Deserialize<ModelsResponse>(modelsJson, _jsonOptions);
+            if (models?.Data?.Count > 0)
+            {
+                currentModel = models.Data[0].Id;
+            }
+        }
+        catch
+        {
+            currentModel = "No model loaded";
+        }
+
+        var response = JsonSerializer.Serialize(new
+        {
+            port = lmStudioPort,
+            status = currentStatus.ToString().ToLower(),
+            model = currentModel,
+            connected = currentStatus == LmsStatus.Running
+        }, _jsonOptions);
+
+        SendJsonResponse(context, HttpStatusCode.OK, response);
+    }
+
+    private class ModelsResponse
+    {
+        [JsonPropertyName("data")]
+        public List<ModelInfo> Data { get; set; } = new();
+    }
+
+    private class ModelInfo
+    {
+        [JsonPropertyName("id")]
+        public string Id { get; set; } = "";
     }
 }

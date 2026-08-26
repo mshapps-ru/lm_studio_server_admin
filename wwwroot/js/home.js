@@ -8,6 +8,31 @@ const Home = {
         this.startPolling();
     },
 
+    async getLmStudioInfo() {
+        try {
+            const data = await App.apiFetch('/api/lmstudio/info');
+            if (data) {
+                this.updateConnectionInfo(data);
+            }
+        } catch (e) {
+            // Ignore errors
+        }
+    },
+
+    updateConnectionInfo(data) {
+        const portEl = document.getElementById('lmstudio-port');
+        const modelEl = document.getElementById('lmstudio-model');
+        const statusEl = document.getElementById('lmstudio-connection-status');
+
+        if (portEl) portEl.textContent = data.port || '—';
+        if (modelEl) modelEl.textContent = data.model || '—';
+        if (statusEl) {
+            statusEl.textContent = data.connected ? 'Connected' : 'Disconnected';
+            statusEl.style.color = data.connected ? 'var(--success)' : 'var(--danger)';
+            statusEl.style.fontWeight = '600';
+        }
+    },
+
     bindEvents() {
         document.getElementById('start-btn').addEventListener('click', () => this.startServer());
         document.getElementById('stop-btn').addEventListener('click', () => this.stopServer());
@@ -91,12 +116,14 @@ const Home = {
     },
 
     startPolling() {
-        // Initial status check
+        // Initial checks
         this.getStatus();
+        this.getLmStudioInfo();
 
         // Poll every 10 seconds
         this._intervalId = setInterval(() => {
             this.getStatus();
+            this.getLmStudioInfo();
         }, 10000);
     },
 

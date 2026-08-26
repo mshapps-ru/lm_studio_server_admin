@@ -11,6 +11,11 @@ POST   /api/start     – Start the server process
 POST   /api/stop      – Stop the server process
 GET    /api/settings  – Retrieve current username & port
 PUT    /api/settings  – Update username (optional), password (optional) and/or port.
+GET    /api/lmstudio/info         – LM Studio Server info (port, model, connection status)
+GET    /api/settings/lmstudio     – LM Studio settings (port, bind address)
+POST   /api/settings/lmstudio/detect – Auto-detect LM Studio Server port
+PUT    /api/settings/lmstudio     – Update LM Studio settings (port, bind address)
+GET    /v1/* /api/v1/*            – Proxy requests to LM Studio Server
 
 **Payload example**:
 ```
@@ -46,6 +51,49 @@ The `status` field is always lower‑cased. The `message` provides a friendly de
 - **/api/start**, **/api/stop** – Wrap calls to `LmsCommandExecutor.StartServer()` / `.StopServer()`.
 
 > All responses are JSON with `Content-Type: application/json`.
+
+### LM Studio Info Endpoint
+The `/api/lmstudio/info` endpoint returns connection information about the LM Studio Server:
+```json
+{
+  "port": 1234,
+  "status": "running" | "stopped" | "unknown" | "error",
+  "model": "model-name.gguf" | "N/A" | "No model loaded",
+  "connected": true
+}
+```
+
+### LM Studio Settings Endpoints
+**GET /api/settings/lmstudio** returns current settings:
+```json
+{
+  "lmStudioPort": 1234,
+  "bindAddress": "0.0.0.0"
+}
+```
+
+**POST /api/settings/lmstudio/detect** attempts to auto-detect the LM Studio Server port from `lms server status` output:
+```json
+{
+  "success": true,
+  "port": 1234
+}
+```
+
+**PUT /api/settings/lmstudio** updates settings (JSON body):
+```json
+{
+  "lmStudioPort": 1234,
+  "bindAddress": "0.0.0.0"
+}
+```
+
+### Proxy Endpoints
+All requests to `/v1/*` and `/api/v1/*` are proxied to the LM Studio Server. Supported paths include:
+- `/v1/models`, `/v1/chat/completions`, `/v1/completions`, `/v1/embeddings`
+- `/api/v1/models`, `/api/v1/chat`, `/api/v1/models/load`, `/api/v1/models/download`
+
+The proxy forwards the HTTP method, path, headers (except `host`, `connection`, `content-length`), and request body. Timeout is set to 5 minutes for long-running requests (e.g., chat completions).
 
 **Note:** The status detection now correctly handles the 'not running' output from `lms server status`, ensuring that a stopped server returns `status: "stopped"` and `message: "LM Studio Server is stopped"`. 
 

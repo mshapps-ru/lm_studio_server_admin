@@ -6,6 +6,7 @@ const Settings = {
     init() {
         this.bindEvents();
         this.loadSettings();
+        this.loadLmStudioSettings();
     },
 
     bindEvents() {
@@ -22,6 +23,15 @@ const Settings = {
             } else {
                 portWarning.classList.add('hidden');
             }
+        });
+
+        document.getElementById('auto-detect-port-btn').addEventListener('click', () => {
+            this.autoDetectPort();
+        });
+
+        document.getElementById('lmstudio-settings-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.saveLmStudioSettings();
         });
     },
 
@@ -84,6 +94,67 @@ const Settings = {
             }
         } catch (e) {
             // Error already handled in apiFetch
+        }
+    },
+
+    async loadLmStudioSettings() {
+        try {
+            const data = await App.apiFetch('/api/settings/lmstudio');
+            if (data) {
+                document.getElementById('settings-lmstudio-port').value = data.lmStudioPort || 1234;
+                document.getElementById('settings-bind-address').value = data.bindAddress || '0.0.0.0';
+            }
+        } catch (e) {
+            // Ignore errors
+        }
+    },
+
+    async autoDetectPort() {
+        const btn = document.getElementById('auto-detect-port-btn');
+        btn.disabled = true;
+        btn.textContent = 'Detecting...';
+
+        try {
+            const data = await App.apiFetch('/api/settings/lmstudio/detect', { method: 'POST' });
+            if (data && data.success) {
+                document.getElementById('settings-lmstudio-port').value = data.port;
+                Toast.show(`Port detected: ${data.port}`, 'success');
+            } else {
+                Toast.show('Failed to detect port', 'error');
+            }
+        } catch (e) {
+            Toast.show('Failed to detect port', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Auto-detect';
+        }
+    },
+
+    async saveLmStudioSettings() {
+        const lmStudioPort = parseInt(document.getElementById('settings-lmstudio-port').value);
+        const bindAddress = document.getElementById('settings-bind-address').value.trim();
+
+        if (isNaN(lmStudioPort) || lmStudioPort < 1 || lmStudioPort > 65535) {
+            Toast.show('LM Studio Port must be between 1 and 65535', 'error');
+            return;
+        }
+
+        if (!bindAddress) {
+            Toast.show('Bind Address is required', 'error');
+            return;
+        }
+
+        try {
+            const data = await App.apiFetch('/api/settings/lmstudio', {
+                method: 'PUT',
+                body: JSON.stringify({ lmStudioPort, bindAddress })
+            });
+
+            if (data && data.success) {
+                Toast.show('LM Studio settings saved', 'success');
+            }
+        } catch (e) {
+            Toast.show('Failed to save LM Studio settings', 'error');
         }
     }
 };

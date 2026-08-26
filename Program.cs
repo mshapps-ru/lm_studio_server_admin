@@ -20,7 +20,8 @@ public static class Program
 
         // Загрузка настроек
         _config = ConfigManager.Load();
-        Logger.Info($"Config loaded: username={_config.Username}, port={_config.Port}");
+        LmsCommandExecutor.SetLmStudioPort(_config.LmStudioPort);
+        Logger.Info($"Config loaded: username={_config.Username}, port={_config.Port}, lmStudioPort={_config.LmStudioPort}, bindAddress={_config.BindAddress}");
 
         if (isService)
         {
@@ -94,8 +95,9 @@ public static class Program
             Logger.Info($"Status changed: {status}");
         });
 
-        // Первоначальная проверка статуса
+        // Первоначальная проверка статуса и автоопределение порта
         LmsCommandExecutor.GetStatus();
+        LmsCommandExecutor.TryAutoDetectLmStudioPort();
     }
 
     public static void RestartServices()
