@@ -10,9 +10,29 @@ const App = {
     async checkAuth() {
         const token = this.getToken();
         if (token) {
-            this.showApp();
+            const valid = await this.verifyToken();
+            if (valid) {
+                this.showApp();
+            } else {
+                this.clearToken();
+                this.showLogin();
+            }
         } else {
             this.showLogin();
+        }
+    },
+
+    async verifyToken() {
+        try {
+            const response = await fetch('/api/status', {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.getToken()}`
+                }
+            });
+            return response.ok;
+        } catch {
+            return false;
         }
     },
 
@@ -73,6 +93,7 @@ const App = {
     setupLogout() {
         document.getElementById('logout-btn').addEventListener('click', async (e) => {
             e.preventDefault();
+            Home.stopPolling();
             await Auth.logout();
         });
     },
