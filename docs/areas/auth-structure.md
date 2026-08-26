@@ -7,7 +7,7 @@ The authentication system is handled by **AuthManager** and integrated into the 
 - Endpoint: `POST /api/login`
 - Expects JSON body `{ username, password }`.
 - On success returns `{ success: true, token }` where **token** is a GUID stored in memory.
-- Passwords are hashed with SHA‑256 (Base64). If the stored password was plain text it is updated to hash after successful login.
+- Passwords are hashed with SHA‑256 (Base64). On a successful login, if the stored password is still in plain text, it is immediately replaced by its hash for future logins.
 
 ### Logout
 - Endpoint: `POST /api/logout`
