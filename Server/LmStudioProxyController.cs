@@ -51,6 +51,7 @@ public static class LmStudioProxyController
         var targetUrl = $"http://localhost:{lmStudioPort}{path}";
 
         // Создаём прокси-запрос
+        var startTime = DateTime.UtcNow;
         try
         {
             var proxyRequest = (HttpWebRequest)WebRequest.Create(targetUrl);
@@ -95,17 +96,21 @@ public static class LmStudioProxyController
             }
 
             context.Response.OutputStream.Close();
+            var duration = DateTime.UtcNow - startTime;
+            Logger.Info($"Proxied {method} {path} -> {(int)response.StatusCode} ({duration.TotalMilliseconds} ms)");
         }
         catch (WebException ex)
         {
-            // LM Studio недоступен
             var errorStatus = ((ex.Response as HttpWebResponse)?.StatusCode ?? HttpStatusCode.BadGateway);
+            var duration = DateTime.UtcNow - startTime;
+            Logger.Error($"Proxied {method} {path} -> {(int)errorStatus} ({duration.TotalMilliseconds} ms): LM Studio Server unavailable (port {lmStudioPort})");
             SendJsonResponse(context, errorStatus,
                 JsonSerializer.Serialize(new { error = $"LM Studio Server unavailable (port {lmStudioPort})" }, _jsonOptions));
         }
         catch (Exception ex)
         {
-            Logger.Error($"Proxy error: {ex.Message}", ex);
+            var duration = DateTime.UtcNow - startTime;
+            Logger.Error($"Proxied {method} {path} -> 502 ({duration.TotalMilliseconds} ms): Proxy error: {ex.Message}", ex);
             SendJsonResponse(context, HttpStatusCode.BadGateway,
                 JsonSerializer.Serialize(new { error = "Proxy error" }, _jsonOptions));
         }
