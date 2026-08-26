@@ -69,6 +69,26 @@ const Settings = {
                 const portWarning = document.getElementById('port-warning');
                 if (port !== this._originalPort) {
                     Toast.show('Settings saved. Port change requires server restart.', 'success');
+                    // Redirect to new port after short delay
+                    // Redirect after short delay so server can restart
+                    // Wait a bit to allow server restart, then redirect
+                    // Poll until the new port is reachable before redirecting
+                    const waitForPort = async (port, timeoutMs) => {
+                        const start = Date.now();
+                        while (Date.now() - start < timeoutMs) {
+                            try {
+                                const res = await App.apiFetch(`http://${window.location.hostname}:${port}/api/status`, { method: 'GET' });
+                                if (res.ok) return true;
+                            } catch { }
+                            await new Promise(r => setTimeout(r, 500));
+                        }
+                        return false;
+                    };
+                    waitForPort(port, 10000).then(success => {
+                        const url = new URL(window.location);
+                        url.port = port.toString();
+                        window.location.href = url.toString();
+                    });
                 } else {
                     Toast.show('Settings saved', 'success');
                 }
