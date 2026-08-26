@@ -20,7 +20,12 @@ const App = {
         const loginScreen = document.getElementById('login-screen');
         const appScreen = document.getElementById('app-screen');
         loginScreen.classList.remove('hidden');
-        appScreen.classList.add('hidden');
+        loginScreen.style.display = '';
+        if (appScreen) {
+            // Hide the main application screen
+            appScreen.classList.add('hidden');
+            appScreen.style.display = 'none';
+        }
     },
 
     showApp() {
@@ -66,7 +71,8 @@ const App = {
     },
 
     setupLogout() {
-        document.getElementById('logout-btn').addEventListener('click', async () => {
+        document.getElementById('logout-btn').addEventListener('click', async (e) => {
+            e.preventDefault();
             await Auth.logout();
         });
     },
@@ -106,7 +112,7 @@ const App = {
             console.log('Response data:', data);
 
             if (response.status === 401) {
-                Auth.logout();
+                App.showLogin();
                 Toast.show('Session expired. Please login again.', 'error');
                 return null;
             }

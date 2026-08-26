@@ -44,6 +44,8 @@ const Auth = {
         App.clearToken();
         App.showLogin();
         Toast.show('Logged out', 'success');
+        // Force page reload to ensure UI resets
+        window.location.reload();
     }
 };
 
