@@ -35,4 +35,6 @@ All endpoints that modify state (`/login`, `/logout`, `/start`, `/stop`, `/setti
 - **/api/status** – Calls `LmsCommandExecutor.GetCachedStatus()` and returns status string + message.
 - **/api/start**, **/api/stop** – Wrap calls to `LmsCommandExecutor.StartServer()` / `.StopServer()`.
 
-> All responses are JSON with `Content‑Type: application/json`.
+> All responses are JSON with `Content-Type: application/json`.
+
+**Note:** The status detection now correctly handles the 'not running' output from `lms server status`, ensuring that a stopped server returns `status: "stopped"` and `message: "LM Studio Server is stopped"`. 

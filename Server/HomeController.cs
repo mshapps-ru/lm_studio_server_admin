@@ -12,7 +12,8 @@ public static class HomeController
 
     public static void GetStatus(HttpListenerContext context)
     {
-        var status = LmsCommandExecutor.GetCachedStatus();
+        // Get current status directly (updates cache)
+        var status = LmsCommandExecutor.GetStatus();
         var message = status switch
         {
             LmsStatus.Running => "LM Studio Server is running",

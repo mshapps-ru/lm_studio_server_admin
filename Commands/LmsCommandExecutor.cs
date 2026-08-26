@@ -33,22 +33,29 @@ public static class LmsCommandExecutor
                 };
 
                 using var process = Process.Start(startInfo);
-                process?.WaitForExit(5000);
+                if (process != null)
+                    process.WaitForExit(10000);
 
                 var output = process?.StandardOutput.ReadToEnd() ?? "";
                 var error = process?.StandardError.ReadToEnd() ?? "";
 
-                if (process!.HasExited && process!.ExitCode == 0)
+                Logger.Info($"lms server status output: [{output}]");
+                Logger.Info($"lms server status error: [{error}] ");
+
+                if (process != null && process.HasExited && process.ExitCode == 0)
                 {
-                    if (output.Contains("running", StringComparison.OrdinalIgnoreCase) ||
-                        output.Contains("Started", StringComparison.OrdinalIgnoreCase))
-                    {
-                        _cachedStatus = LmsStatus.Running;
-                    }
-                    else if (output.Contains("stopped", StringComparison.OrdinalIgnoreCase) ||
-                             output.Contains("Stopped", StringComparison.OrdinalIgnoreCase))
+                    var text = (output + " " + error).ToLower();
+                    if (text.Contains("not running"))
                     {
                         _cachedStatus = LmsStatus.Stopped;
+                    }
+                    else if (text.Contains("stopped") || text.Contains("stoped"))
+                    {
+                        _cachedStatus = LmsStatus.Stopped;
+                    }
+                    else if (text.Contains("running") || text.Contains("started") || text.Contains("port"))
+                    {
+                        _cachedStatus = LmsStatus.Running;
                     }
                     else
                     {
