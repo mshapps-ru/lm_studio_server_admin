@@ -73,22 +73,29 @@ const Settings = {
                     // Redirect after short delay so server can restart
                     // Wait a bit to allow server restart, then redirect
                     // Poll until the new port is reachable before redirecting
-                    const waitForPort = async (port, timeoutMs) => {
-                        const start = Date.now();
-                        while (Date.now() - start < timeoutMs) {
-                            try {
-                                const res = await App.apiFetch(`http://${window.location.hostname}:${port}/api/status`, { method: 'GET' });
-                                if (res.ok) return true;
-                            } catch { }
-                            await new Promise(r => setTimeout(r, 500));
-                        }
-                        return false;
+                    // Simple redirect after short delay to allow server restart
+                    // Poll until the new port responds, then redirect
+                    const pollPort = () => {
+                        fetch(`http://${window.location.hostname}:${port}/api/status`, { method: 'GET' })
+                            .then(res => {
+                                if (res.ok) {
+                                    const url = new URL(window.location);
+                                    url.port = port.toString();
+                                    window.location.href = url.toString();
+                                }
+                            }).catch(() => {});
                     };
-                    waitForPort(port, 10000).then(success => {
-                        const url = new URL(window.location);
-                        url.port = port.toString();
-                        window.location.href = url.toString();
-                    });
+                    let attempts = 0;
+                    const intervalId = setInterval(() => {
+                        if (attempts++ > 20) { // after ~10 sec, give up and redirect anyway
+                            clearInterval(intervalId);
+                            const url = new URL(window.location);
+                            url.port = port.toString();
+                            window.location.href = url.toString();
+                        } else {
+                            pollPort();
+                        }
+                    }, 500);
                 } else {
                     Toast.show('Settings saved', 'success');
                 }
