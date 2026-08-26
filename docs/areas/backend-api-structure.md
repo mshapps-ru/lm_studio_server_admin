@@ -22,7 +22,17 @@ PUT    /api/settings  – Update username (optional), password (optional) and/or
 If a field is omitted or empty (e.g., `"password":""`), the existing value remains unchanged.
 ```
 
-All endpoints that modify state (`/login`, `/logout`, `/start`, `/stop`, `/settings`) expect a JSON body and return JSON. Requests other than `/login` and `/logout` must include an `Authorization` header with the token **or** a cookie named `session`. The server validates the token via **AuthManager.TryValidateToken**.
+All endpoints that modify state (`/login`, `/logout`, `/start`, `/stop`, `/settings`) expect a JSON body and return JSON. Requests other than `/login` and `/logout` must include an `Authorization: Bearer <token>` header or a cookie named `session`. The server validates the token via **AuthManager.TryValidateToken**.
+
+### Status response format
+The `/api/status` endpoint returns a JSON object:
+```json
+{
+  "status": "running" | "stopped" | "unknown" | "error",
+  "message": "<human‑readable status message>"
+}
+```
+The `status` field is always lower‑cased. The `message` provides a friendly description (e.g., "LM Studio Server is running").
 
 ### Authentication Flow
 1. Client posts credentials to `/api/login`.
