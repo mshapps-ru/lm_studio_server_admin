@@ -15,7 +15,7 @@ PUT    /api/settings  – Update username (optional), password (optional) and/or
 **Payload example**:
 ```
 {
-    "password": "newPassword",   // optional; plain text. Server will hash it.
+    "password": "newPassword",   // optional; plain text. Server will hash it on first login if stored in plain text.
     "port": 8888                  // optional; integer between 1‑65535
 }
 ```
@@ -48,3 +48,5 @@ The `status` field is always lower‑cased. The `message` provides a friendly de
 > All responses are JSON with `Content-Type: application/json`.
 
 **Note:** The status detection now correctly handles the 'not running' output from `lms server status`, ensuring that a stopped server returns `status: "stopped"` and `message: "LM Studio Server is stopped"`. 
+
+**Important:** If `/api/settings` changes the listening port, any active sessions are invalidated. Clients must re‑authenticate after a port change.

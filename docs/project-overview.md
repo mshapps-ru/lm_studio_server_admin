@@ -12,3 +12,4 @@ This repository implements a lightweight **LM Studio Server Admin** utility. It 
 1. Run the application in console mode (`dotnet run`) or install as a Windows Service.
 2. Open the web UI at `http://localhost:{port}` (default 7778).
 3. Log in with admin credentials, then control the server process.
+4. Changing the listening port triggers a restart of the HTTP service; any active sessions become invalid and must re‑authenticate.

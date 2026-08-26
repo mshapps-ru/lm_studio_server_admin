@@ -45,6 +45,12 @@ public static class AuthManager
         }
     }
 
+    public static void ClearAllSessions()
+    {
+        _sessions.Clear();
+        Logger.Info("All sessions cleared due to port change");
+    }
+
     public static bool TryValidateToken(string token, out string username)
     {
         username = string.Empty;

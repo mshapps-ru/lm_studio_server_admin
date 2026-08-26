@@ -13,7 +13,7 @@
 * **HTTP Port** – listens on port **7778** (configurable via `config.json`).
 * **UI** – simple single‑page app (SPA) served from `/wwwroot`. After successful login it shows two tabs:
   * **Home** – status panel + *Start/Stop* buttons.
-  * **Settings** – edit username, password and listening port.
+  * **Settings** – edit username, password and listening port. Changing the port triggers a server restart; existing sessions become invalid.
 * **Authentication** – token based session stored in a cookie or `Authorization` header. Passwords are hashed with SHA‑256 on first login.
 * **LM Studio Interaction** – commands executed through the external CLI (`lms server start/stop/status`). Status is cached and refreshed every minute.
 * **Configuration** – persisted in `config.json` located next to the executable.
@@ -28,9 +28,10 @@
 | HTTP Interface | Simple `HttpListener` based server – no heavy framework required. |
 | Login/Logout | Token is issued on `/api/login`, invalidated by `/api/logout`. |
 | Home Tab | Shows current LM Studio status, Start & Stop buttons.
-| Settings Tab | Edit admin credentials and listening port; changes are written to `config.json`.
-| Automatic Status Refresh | Background task polls LM Studio every 60 s.
+| Settings Tab | Edit admin credentials and listening port; changes are written to `config.json` and trigger a server restart if the port changes.
+| Automatic Status Refresh | Background task polls LM Studio every 60 s. |
 | Logging | File logger (`logs/app.log`) with INFO/WARN/ERROR levels. |
+| Session Invalidation | Changing the listening port invalidates existing sessions; users must log in again. |
 
 ---
 

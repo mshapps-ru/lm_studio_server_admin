@@ -90,6 +90,7 @@ public static class SettingsController
 
             if (portChanged)
             {
+                AuthManager.ClearAllSessions(); // invalidate sessions
                 Logger.Info("Service restarted due to port change.");
                 Program.RestartServices();
             }
