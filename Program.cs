@@ -98,6 +98,12 @@ public static class Program
         LmsCommandExecutor.GetStatus();
     }
 
+    public static void RestartServices()
+    {
+        StopServices();
+        StartServices();
+    }
+
     private static void StopServices()
     {
         Logger.Info("Shutting down...");

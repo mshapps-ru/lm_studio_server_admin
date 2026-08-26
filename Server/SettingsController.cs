@@ -80,8 +80,16 @@ public static class SettingsController
             if (passwordChanged)
                 Logger.Info("Password changed");
 
+            bool portChanged = oldPort != config.Port;
             ConfigManager.Save(config);
             Logger.Info("Settings updated successfully");
+
+            if (portChanged)
+            {
+                // Restart services to apply new port
+                Program.RestartServices();
+                Logger.Info("Service restarted due to port change.");
+            }
 
             SendJsonResponse(context, HttpStatusCode.OK,
                 JsonSerializer.Serialize(new { success = true }, _jsonOptions));
