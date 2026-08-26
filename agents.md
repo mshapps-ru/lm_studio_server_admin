@@ -10,7 +10,7 @@
 // ✅ Default — delegate to subagent
 subagent({
   agent: "browser-checker",
-  task: "Navigate to http://localhost:5173 and take a screenshot"
+  task: "Navigate to http://localhost:7778 and take a screenshot"
 })
 
 // ✅ Override — only when user explicitly asked you to do it yourself
