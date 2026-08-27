@@ -1,0 +1,8 @@
+- [ ] Extend AppConfig with LmStudioLoadedModel
+- [ ] Implement LoadModel in LmsCommandExecutor
+- [ ] Update LmStudioProxyController to load model on proxy request
+- [ ] Add startup logic to auto‑load model from config
+- [ ] Write unit tests for LoadModel
+- [ ] Integration test proxy loading behavior
+- [ ] Verify no reload when same model already loaded
+- [ ] Update docs if necessary
