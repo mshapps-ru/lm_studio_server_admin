@@ -1,6 +1,9 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
 using LmStudioServerAdmin.Config;
 using LmStudioServerAdmin.Logging;
 
@@ -25,10 +28,13 @@ public static class LmStudioProxyController
     {
         "host",
         "connection",
-        "content-length"
+        "content-length",
+        "transfer-encoding",
     };
 
     private static readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = false };
+
+    private static readonly HttpClient _httpClient = new();
 
     public static void HandleProxyRequest(HttpListenerContext context, AppConfig config)
     {
@@ -36,9 +42,13 @@ public static class LmStudioProxyController
         var path = request.Url?.AbsolutePath ?? "/";
         var method = request.HttpMethod;
 
+        // Получаем порт LM Studio
+        var lmStudioPort = config.LmStudioPort;
+        var targetUrl = $"http://localhost:{lmStudioPort}{path}";
+
         // Проверяем, является ли путь проксируемым
         var isProxyPath = ProxyPaths.Any(p => path.StartsWith(p, StringComparison.OrdinalIgnoreCase))
-                          || path.StartsWith("/api/v1/models/download/status", StringComparison.OrdinalIgnoreCase);
+                          || path.StartsWith("/api/v1", StringComparison.OrdinalIgnoreCase);
 
         if (!isProxyPath)
         {
@@ -46,66 +56,112 @@ public static class LmStudioProxyController
             return;
         }
 
-        // Получаем порт LM Studio
-        var lmStudioPort = config.LmStudioPort;
-        var targetUrl = $"http://localhost:{lmStudioPort}{path}";
+        // Читаем body заранее
+        var bodyBytes = Array.Empty<byte>();
+        string requestBodyStr = "";
+        if (request.ContentLength64 > 0 && method != "GET" && method != "HEAD")
+        {
+            var contentLength = (int)request.ContentLength64;
+            bodyBytes = new byte[contentLength];
+            int bytesRead = 0;
+            while (bytesRead < contentLength)
+            {
+                int read = request.InputStream.Read(bodyBytes, bytesRead, contentLength - bytesRead);
+                if (read == 0) break;
+                bytesRead += read;
+            }
+            bodyBytes = bodyBytes.Take(bytesRead).ToArray();
+            requestBodyStr = Encoding.UTF8.GetString(bodyBytes);
+        }
 
-        // Создаём прокси-запрос
+        // Verbose proxy logging
+        if (config.VerboseProxyLogging)
+        {
+            var headersInfo = string.Join("; ", request.Headers.AllKeys.Select(k => $"{k}: {request.Headers[k]}"));
+            Logger.Info($"[PROXY IN] {method} {path}\nHeaders: {headersInfo}\nBody: {requestBodyStr}");
+            Logger.Info($"[PROXY OUT] targetUrl: {targetUrl}");
+            Logger.Info($"[PROXY OUT] method: {method}");
+            Logger.Info($"[PROXY OUT] Body size: {bodyBytes.Length} bytes");
+        }
+
         var startTime = DateTime.UtcNow;
+
         try
         {
-            var proxyRequest = (HttpWebRequest)WebRequest.Create(targetUrl);
-            proxyRequest.Method = method;
-            proxyRequest.ContentType = request.ContentType ?? "application/json";
-            proxyRequest.Timeout = 300000; // 5 минут для долгих запросов
+            // Создаём HTTP-запрос
+            var httpRequest = new HttpRequestMessage(new HttpMethod(method), targetUrl);
 
-            // Копируем заголовки (исключая некоторые)
+            // Копируем заголовки
             foreach (var key in request.Headers.AllKeys)
             {
                 if (key != null && !IgnoredHeaders.Contains(key))
                 {
-                    try { proxyRequest.Headers.Add(key, request.Headers[key]!); } catch { }
+                    var value = request.Headers[key];
+                    if (value != null)
+                    {
+                        try
+                        {
+                            httpRequest.Headers.TryAddWithoutValidation(key, new[] { value });
+                        }
+                        catch
+                        {
+                            // Ignore headers that can't be added
+                        }
+                    }
                 }
             }
 
-            // Копируем тело запроса
-            if (request.ContentLength64 > 0 && method != "GET" && method != "HEAD")
+            // Если в исходном запросе нет заголовка Authorization, но в cookie есть токен – добавим его
+            if (!request.Headers.AllKeys.Any(k => string.Equals(k, "Authorization", StringComparison.OrdinalIgnoreCase))
+                && request.Cookies["token"] != null)
             {
-                using var inputStream = request.InputStream;
-                using var ms = new MemoryStream();
-                inputStream.CopyTo(ms);
-                proxyRequest.ContentLength = ms.Length;
-                if (ms.Length > 0)
+                var token = request.Cookies["token"].Value;
+                if (!string.IsNullOrWhiteSpace(token))
                 {
-                    using var requestStream = proxyRequest.GetRequestStream();
-                    ms.Position = 0;
-                    ms.CopyTo(requestStream);
+                    httpRequest.Headers.TryAddWithoutValidation("Authorization", $"Bearer {token}");
                 }
             }
 
-            // Получаем ответ
-            using var response = (HttpWebResponse)proxyRequest.GetResponse();
-            var responseStream = response.GetResponseStream();
-
-            context.Response.StatusCode = (int)response.StatusCode;
-            context.Response.ContentType = response.ContentType ?? "application/json";
-
-            if (responseStream != null)
+            // Добавляем body
+            if (bodyBytes.Length > 0)
             {
-                responseStream.CopyTo(context.Response.OutputStream);
+                httpRequest.Content = new ByteArrayContent(bodyBytes);
+                httpRequest.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(request.ContentType ?? "application/json");
+            }
+
+            // Отправляем запрос
+            HttpResponseMessage httpResponse;
+            try
+            {
+                httpResponse = _httpClient.Send(httpRequest);
+            }
+            catch (TaskCanceledException) when (config.VerboseProxyLogging)
+            {
+                var timeoutDuration = DateTime.UtcNow - startTime;
+                Logger.Error($"Proxied {method} {path} -> TIMEOUT ({timeoutDuration.TotalMilliseconds} ms): Request timed out");
+                throw;
+            }
+
+            // Копируем ответ
+            var responseStream = httpResponse.Content?.ReadAsStreamAsync().GetAwaiter().GetResult() ?? Stream.Null;
+            var responseBuffer = new MemoryStream();
+            responseStream.CopyTo(responseBuffer);
+            responseBuffer.Position = 0;
+
+            context.Response.StatusCode = (int)httpResponse.StatusCode;
+            context.Response.ContentType = httpResponse.Content?.Headers.ContentType?.MediaType ?? "application/json";
+
+            if (responseBuffer.Length > 0)
+            {
+                var outBuffer = responseBuffer.ToArray();
+                context.Response.ContentLength64 = outBuffer.Length;
+                context.Response.OutputStream.Write(outBuffer, 0, outBuffer.Length);
             }
 
             context.Response.OutputStream.Close();
-            var duration = DateTime.UtcNow - startTime;
-            Logger.Info($"Proxied {method} {path} -> {(int)response.StatusCode} ({duration.TotalMilliseconds} ms)");
-        }
-        catch (WebException ex)
-        {
-            var errorStatus = ((ex.Response as HttpWebResponse)?.StatusCode ?? HttpStatusCode.BadGateway);
-            var duration = DateTime.UtcNow - startTime;
-            Logger.Error($"Proxied {method} {path} -> {(int)errorStatus} ({duration.TotalMilliseconds} ms): LM Studio Server unavailable (port {lmStudioPort})");
-            SendJsonResponse(context, errorStatus,
-                JsonSerializer.Serialize(new { error = $"LM Studio Server unavailable (port {lmStudioPort})" }, _jsonOptions));
+
+            var proxyDuration = DateTime.UtcNow - startTime;
+            Logger.Info($"Proxied {method} {path} -> {(int)httpResponse.StatusCode} ({proxyDuration.TotalMilliseconds} ms)");
         }
         catch (Exception ex)
         {
