@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 using System.Text;
+using LmStudioServerAdmin.Config;
 using LmStudioServerAdmin.Logging;
 
 namespace LmStudioServerAdmin.Commands;
@@ -26,6 +27,7 @@ public static class LmsCommandExecutor
         {
             try
             {
+                var config = ConfigManager.Load();
                 var startInfo = new ProcessStartInfo
                 {
                     FileName = "lms",
@@ -94,7 +96,7 @@ public static class LmsCommandExecutor
                             }
                         }
                     }
-                    if (_cachedLoadedModels.Count > 0)
+                    if (config.VerboseProxyLogging && _cachedLoadedModels.Count > 0)
                     {
                         Logger.Info($"Loaded models parsed: {string.Join(", ", _cachedLoadedModels)}");
                     }
@@ -104,7 +106,11 @@ public static class LmsCommandExecutor
                     _cachedStatus = LmsStatus.Unknown;
                 }
 
-                Logger.Info($"LM Studio status checked: {_cachedStatus}");
+                if (config.VerboseProxyLogging)
+                {
+                    Logger.Info($"LM Studio status checked: {_cachedStatus}");
+                }
+
                 return _cachedStatus;
             }
             catch (Exception ex)

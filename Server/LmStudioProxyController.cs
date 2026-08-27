@@ -112,13 +112,16 @@ public static class LmStudioProxyController
             }
 
             // Если в исходном запросе нет заголовка Authorization, но в cookie есть токен – добавим его
-            if (!request.Headers.AllKeys.Any(k => string.Equals(k, "Authorization", StringComparison.OrdinalIgnoreCase))
-                && request.Cookies["token"] != null)
+            if (!request.Headers.AllKeys.Any(k => string.Equals(k, "Authorization", StringComparison.OrdinalIgnoreCase)))
             {
-                var token = request.Cookies["token"].Value;
-                if (!string.IsNullOrWhiteSpace(token))
+                var tokenCookie = request.Cookies["token"];
+                if (tokenCookie != null)
                 {
-                    httpRequest.Headers.TryAddWithoutValidation("Authorization", $"Bearer {token}");
+                    var token = tokenCookie.Value;
+                    if (!string.IsNullOrWhiteSpace(token))
+                    {
+                        httpRequest.Headers.TryAddWithoutValidation("Authorization", $"Bearer {token}");
+                    }
                 }
             }
 
@@ -143,13 +146,14 @@ public static class LmStudioProxyController
             }
 
             // Копируем ответ
-            var responseStream = httpResponse.Content?.ReadAsStreamAsync().GetAwaiter().GetResult() ?? Stream.Null;
+            var responseStream = httpResponse.Content?.ReadAsStreamAsync().GetAwaiter().GetResult() ?? (Stream)Stream.Null;
             var responseBuffer = new MemoryStream();
             responseStream.CopyTo(responseBuffer);
             responseBuffer.Position = 0;
 
             context.Response.StatusCode = (int)httpResponse.StatusCode;
-            context.Response.ContentType = httpResponse.Content?.Headers.ContentType?.MediaType ?? "application/json";
+            var contentType = httpResponse.Content?.Headers.ContentType?.MediaType;
+            context.Response.ContentType = contentType ?? "application/json";
 
             if (responseBuffer.Length > 0)
             {

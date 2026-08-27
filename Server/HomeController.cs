@@ -10,6 +10,7 @@ namespace LmStudioServerAdmin.Server;
 public static class HomeController
 {
     private static readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = false };
+    private static string? _lastModelDisplay;
 
     public static void GetStatus(HttpListenerContext context)
     {
@@ -85,6 +86,13 @@ public static class HomeController
         else
         {
             modelDisplay = "No model loaded";
+        }
+
+        // Логирование только при изменении модели
+        if (config.VerboseProxyLogging && _lastModelDisplay != modelDisplay)
+        {
+            Logger.Info($"Model changed: {_lastModelDisplay ?? "null"} -> {modelDisplay}");
+            _lastModelDisplay = modelDisplay;
         }
 
         var response = JsonSerializer.Serialize(new
