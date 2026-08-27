@@ -160,6 +160,7 @@ http://<your-IP>:7778
 | `port` | Admin server listening port |
 | `lmStudioPort` | LM Studio Server port |
 | `bindAddress` | Bind address (`0.0.0.0` for all interfaces, `localhost` for local only) |
++| `verboseLogging` | Boolean flag enabling verbose proxy logging (default false) |
 
 The file is created automatically if missing and is overwritten with the hashed password after a successful login.
 
