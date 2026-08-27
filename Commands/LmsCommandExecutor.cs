@@ -242,10 +242,11 @@ public static class LmsCommandExecutor
                 // Unload everything first
                 UnloadAllModels();
 
+                var baseModel = GetBaseName(modelName);
                 var startInfo = new ProcessStartInfo
                 {
                     FileName = "lms",
-                    Arguments = $"load {modelName}",
+                    Arguments = $"load {baseModel}",
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
@@ -261,8 +262,19 @@ public static class LmsCommandExecutor
                     Logger.Error($"Failed to load model {modelName}: {error}");
                     return false;
                 }
-                _cachedLoadedModels.Add(modelName);
-                Logger.Info($"Model {modelName} loaded successfully");
+                _cachedLoadedModels.Add(baseModel);
+                Logger.Info($"Model {baseModel} loaded successfully");
+
+                // Wait up to 5 seconds for LM Studio to report the model as loaded
+                var start = DateTime.UtcNow;
+                while ((DateTime.UtcNow - start).TotalSeconds < 5)
+                {
+                    var loaded = GetLoadedModels();
+                    if (loaded.Any(m => GetBaseName(m).Equals(baseModel, StringComparison.OrdinalIgnoreCase)))
+                        break;
+                    System.Threading.Thread.Sleep(500);
+                }
+
                 return true;
             }
             catch (Exception ex)

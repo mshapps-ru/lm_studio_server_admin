@@ -60,6 +60,7 @@ public static class LmStudioProxyController
         // Читаем body заранее
         var bodyBytes = Array.Empty<byte>();
         string requestBodyStr = "";
+        string? requestedModelName = null;
         if (request.ContentLength64 > 0 && method != "GET" && method != "HEAD")
         {
             var contentLength = (int)request.ContentLength64;
@@ -87,6 +88,7 @@ public static class LmStudioProxyController
                     // Determine the actual model name: use substring after last '/' if present
                     var separatorIndex = modelName.LastIndexOf('/');
                     var normalized = separatorIndex >= 0 ? modelName[(separatorIndex + 1)..] : modelName;
+                    requestedModelName = normalized; // store for later use
                     if (!normalized.Equals(config.LmStudioLoadedModel, StringComparison.OrdinalIgnoreCase))
                     {
                         Logger.Info($"Proxy request contains model '{modelName}', attempting to load '{normalized}'.");
@@ -207,6 +209,20 @@ public static class LmStudioProxyController
 
             var proxyDuration = DateTime.UtcNow - startTime;
             Logger.Info($"Proxied {method} {path} -> {(int)httpResponse.StatusCode} ({proxyDuration.TotalMilliseconds} ms)");
+
+            // If we received a non‑200 response and the request contains a model, ensure it is loaded.
+            if (httpResponse.StatusCode != HttpStatusCode.OK && !string.IsNullOrEmpty(requestedModelName))
+            {
+                var baseRequested = requestedModelName.Contains(":") ? requestedModelName.Split(':')[0] : requestedModelName;
+                var loadedModels = LmsCommandExecutor.GetLoadedModels();
+                if (!loadedModels.Any(m => m.Split(':')[0].Equals(baseRequested, StringComparison.OrdinalIgnoreCase)))
+                {
+                    Logger.Info($"Non‑200 response detected; attempting to load model {baseRequested}.");
+                    var loaded = LmsCommandExecutor.LoadModel(baseRequested);
+                    if (loaded)
+                        ConfigManager.Save(config);
+                }
+            }
         }
         catch (Exception ex)
         {
