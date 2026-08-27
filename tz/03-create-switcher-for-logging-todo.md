@@ -1,0 +1,8 @@
+- Review documentation and current codebase
+- Determine API endpoint for verbose flag (extend existing or new)
+- Update SettingsController GET/PUT to include verboseLogging
+- Add toggle element in settings.js UI and load/set its state
+- Persist changes via PUT request on form submit
+- Verify runtime usage of AppConfig.verboseLogging
+- Write unit tests for config persistence (optional)
+- Update README/docs to mention new setting

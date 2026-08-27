@@ -40,8 +40,13 @@ const Settings = {
             const data = await App.apiFetch('/api/settings');
             if (data) {
                 // Username is not editable in settings
-                document.getElementById('settings-port').value = data.port || 7778;
-                this._originalPort = data.port;
+document.getElementById('settings-port').value = data.port || 7778;
+this._originalPort = data.port;
+// Set verbose logging checkbox
+const vlogCheckbox = document.getElementById('verbose-logging');
+if (vlogCheckbox) {
+    vlogCheckbox.checked = !!data.verboseLogging;
+}
             }
         } catch (e) {
             // Error already handled in apiFetch
@@ -72,7 +77,7 @@ const Settings = {
         try {
             const data = await App.apiFetch('/api/settings', {
                 method: 'PUT',
-                body: JSON.stringify({ password, port })
+                body: JSON.stringify({ password, port, verboseLogging: document.getElementById('verbose-logging').checked })
             });
 
             if (data && data.success) {

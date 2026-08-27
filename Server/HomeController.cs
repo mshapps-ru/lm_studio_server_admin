@@ -89,7 +89,7 @@ public static class HomeController
         }
 
         // Логирование только при изменении модели
-        if (config.VerboseProxyLogging && _lastModelDisplay != modelDisplay)
+        if (config.VerboseLogging && _lastModelDisplay != modelDisplay)
         {
             Logger.Info($"Model changed: {_lastModelDisplay ?? "null"} -> {modelDisplay}");
             _lastModelDisplay = modelDisplay;

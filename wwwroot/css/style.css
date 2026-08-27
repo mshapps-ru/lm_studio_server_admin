@@ -138,6 +138,20 @@ body {
     margin-bottom: 1rem;
 }
 
+.checkbox-inline {
+    display: flex;
+    align-items: center;
+}
+
+.checkbox-inline label {
+    flex: 2;
+}
+
+.checkbox-inline input[type="checkbox"] {
+    margin-left: 0.5rem;
+}
+
+
 .form-group label {
     display: block;
     margin-bottom: 0.4rem;

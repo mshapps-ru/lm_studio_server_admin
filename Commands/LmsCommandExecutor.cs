@@ -96,7 +96,7 @@ public static class LmsCommandExecutor
                             }
                         }
                     }
-                    if (config.VerboseProxyLogging && _cachedLoadedModels.Count > 0)
+                    if (config.VerboseLogging && _cachedLoadedModels.Count > 0)
                     {
                         Logger.Info($"Loaded models parsed: {string.Join(", ", _cachedLoadedModels)}");
                     }
@@ -106,7 +106,7 @@ public static class LmsCommandExecutor
                     _cachedStatus = LmsStatus.Unknown;
                 }
 
-                if (config.VerboseProxyLogging)
+                if (config.VerboseLogging)
                 {
                     Logger.Info($"LM Studio status checked: {_cachedStatus}");
                 }

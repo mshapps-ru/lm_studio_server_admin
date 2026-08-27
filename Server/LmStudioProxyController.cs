@@ -74,8 +74,8 @@ public static class LmStudioProxyController
             requestBodyStr = Encoding.UTF8.GetString(bodyBytes);
         }
 
-        // Verbose proxy logging
-        if (config.VerboseProxyLogging)
+        // Verbose Logging
+        if (config.VerboseLogging)
         {
             var headersInfo = string.Join("; ", request.Headers.AllKeys.Select(k => $"{k}: {request.Headers[k]}"));
             Logger.Info($"[PROXY IN] {method} {path}\nHeaders: {headersInfo}\nBody: {requestBodyStr}");
@@ -138,7 +138,7 @@ public static class LmStudioProxyController
             {
                 httpResponse = _httpClient.Send(httpRequest);
             }
-            catch (TaskCanceledException) when (config.VerboseProxyLogging)
+            catch (TaskCanceledException) when (config.VerboseLogging)
             {
                 var timeoutDuration = DateTime.UtcNow - startTime;
                 Logger.Error($"Proxied {method} {path} -> TIMEOUT ({timeoutDuration.TotalMilliseconds} ms): Request timed out");

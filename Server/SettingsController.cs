@@ -18,11 +18,12 @@ public static class SettingsController
 
     public static void GetSettings(HttpListenerContext context, AppConfig config)
     {
-        var response = JsonSerializer.Serialize(new
-        {
-            username = config.Username,
-            port = config.Port
-        }, _jsonOptions);
+var response = JsonSerializer.Serialize(new
+{
+    username = config.Username,
+    port = config.Port,
+    verboseLogging = config.VerboseLogging
+}, _jsonOptions);
         SendJsonResponse(context, HttpStatusCode.OK, response);
     }
 
@@ -141,12 +142,22 @@ public static class SettingsController
             }
 
             // Log changes
-            if (oldPort != config.Port)
-                Logger.Info($"Port changed from {oldPort} to {config.Port}");
-            if (!string.IsNullOrWhiteSpace(newSettings.Username) && oldUsername != config.Username)
-                Logger.Info($"Username changed from {oldUsername} to {config.Username}");
-            if (passwordChanged)
-                Logger.Info("Password changed");
+if (oldPort != config.Port)
+    Logger.Info($"Port changed from {oldPort} to {config.Port}");
+if (!string.IsNullOrWhiteSpace(newSettings.Username) && oldUsername != config.Username)
+    Logger.Info($"Username changed from {oldUsername} to {config.Username}");
+if (passwordChanged)
+    Logger.Info("Password changed");
+
+// Handle Verbose Logging change
+if (newSettings.VerboseLogging.HasValue)
+{
+    if (config.VerboseLogging != newSettings.VerboseLogging.Value)
+    {
+        config.VerboseLogging = newSettings.VerboseLogging.Value;
+        Logger.Info($"Verbose logging changed to {config.VerboseLogging}");
+    }
+}
 
             bool portChanged = oldPort != config.Port;
             ConfigManager.Save(config);
@@ -185,8 +196,10 @@ public static class SettingsController
     {
         public string? Username { get; set; }
         public string? Password { get; set; }
-        public int Port { get; set; }
-    }
+public int Port { get; set; }
+        public bool? VerboseLogging { get; set; }
+}
+
 
     private class LmStudioSettingsUpdate
     {

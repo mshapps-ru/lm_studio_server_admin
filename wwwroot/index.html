@@ -89,10 +89,14 @@
                             <label for="settings-password-confirm">Confirm Password</label>
                             <input type="password" id="settings-password-confirm" name="passwordConfirm">
                         </div>
-                        <div class="form-group">
-                            <label for="settings-port">Port</label>
-                            <input type="number" id="settings-port" name="port" min="1" max="65535" required>
-                        </div>
+<div class="form-group">
+            <label for="settings-port">Port</label>
+            <input type="number" id="settings-port" name="port" min="1" max="65535" required>
+        </div>
+<div class="form-group checkbox-inline">
+    <label for="verbose-logging">Verbose Logging</label>
+    <input type="checkbox" id="verbose-logging" name="verboseLogging">
+</div>
                         <div id="port-warning" class="warning hidden">
                             Changing the port requires a server restart to take effect.
                         </div>
