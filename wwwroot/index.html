@@ -78,8 +78,8 @@
             <!-- Settings Tab -->
             <div id="settings-tab" class="tab-content">
                 <div class="card">
-                    <h2>Admin Settings</h2>
-                    <form id="settings-form">
+                    <h2>Admin Credentials</h2>
+                    <form id="admin-credentials-form">
 
                         <div class="form-group">
                             <label for="settings-password">Password <small>(leave blank to keep current)</small></label>
@@ -89,18 +89,25 @@
                             <label for="settings-password-confirm">Confirm Password</label>
                             <input type="password" id="settings-password-confirm" name="passwordConfirm">
                         </div>
-<div class="form-group">
-            <label for="settings-port">Port</label>
-            <input type="number" id="settings-port" name="port" min="1" max="65535" required>
-        </div>
-<div class="form-group checkbox-inline">
-    <label for="verbose-logging">Verbose Logging</label>
-    <input type="checkbox" id="verbose-logging" name="verboseLogging">
-</div>
+                        <button type="submit" class="btn btn-primary">Save Password</button>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <h2>Application Port & Verbose Logging</h2>
+                    <form id="port-settings-form">
+                        <div class="form-group">
+                            <label for="settings-port">Port</label>
+                            <input type="number" id="settings-port" name="port" min="1" max="65535" required>
+                        </div>
+                        <div class="form-group checkbox-inline">
+                            <label for="verbose-logging">Verbose Logging</label>
+                            <input type="checkbox" id="verbose-logging" name="verboseLogging">
+                        </div>
                         <div id="port-warning" class="warning hidden">
                             Changing the port requires a server restart to take effect.
                         </div>
-                        <button type="submit" class="btn btn-primary">Save</button>
+                        <button type="submit" class="btn btn-primary">Save Port</button>
                     </form>
                 </div>
 

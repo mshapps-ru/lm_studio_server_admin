@@ -1,11 +1,11 @@
-- **Read** project documentation and code.
-- **Ask clarifying questions** (see plan above).
-- **Update HTML**: add three separate form sections for admin credentials, port/verbose, LM‑Studio settings.
-- **Refactor JS**: split Settings object into `saveAdminPassword`, `savePortAndVerbose`, keep `saveLmStudioSettings`.
-- **Adjust event listeners** to use new submit handlers.
-- **Preserve auto‑detect button** inside LM‑Studio block.
-- **Verify API behavior** – ensure `/api/settings` works with partial bodies.
-- **Add CSS adjustments** if needed for layout consistency.
-- **Write unit tests** for each JS method.
-- **Update documentation** to reflect optional fields handling.
-- **Review and commit changes**.
+- [x] Read project documentation and code.
+- [x] Ask clarifying questions (see plan above).
+- [x] Update HTML: add three separate form sections for admin credentials, port/verbose, LM‑Studio settings.
+- [x] Refactor JS: split Settings object into `saveAdminPassword`, `savePortAndVerbose`, keep `saveLmStudioSettings`.
+- [x] Adjust event listeners to use new submit handlers.
+- [x] Preserve auto‑detect button inside LM‑Studio block.
+- [x] Verify API behavior – ensure `/api/settings` works with partial bodies.
+- [ ] Add CSS adjustments if needed for layout consistency.
+- [ ] Write unit tests for each JS method.
+- [ ] Update documentation to reflect optional fields handling.
+- [ ] Review and commit changes.
