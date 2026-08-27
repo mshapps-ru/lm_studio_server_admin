@@ -6,6 +6,7 @@ using System.Linq;
 using System.Net.Http;
 using LmStudioServerAdmin.Config;
 using LmStudioServerAdmin.Logging;
+using LmStudioServerAdmin.Commands;
 
 namespace LmStudioServerAdmin.Server;
 
@@ -72,6 +73,46 @@ public static class LmStudioProxyController
             }
             bodyBytes = bodyBytes.Take(bytesRead).ToArray();
             requestBodyStr = Encoding.UTF8.GetString(bodyBytes);
+        }
+
+        // Attempt to auto‑load model if JSON contains a `model` field and differs from config
+        try
+        {
+            using var doc = JsonDocument.Parse(requestBodyStr ?? "{}");
+            if (doc.RootElement.ValueKind == JsonValueKind.Object && doc.RootElement.TryGetProperty("model", out var modelProp))
+            {
+                var modelName = modelProp.GetString();
+                if (!string.IsNullOrWhiteSpace(modelName))
+                {
+                    // Determine the actual model name: use substring after last '/' if present
+                    var separatorIndex = modelName.LastIndexOf('/');
+                    var normalized = separatorIndex >= 0 ? modelName[(separatorIndex + 1)..] : modelName;
+                    if (!normalized.Equals(config.LmStudioLoadedModel, StringComparison.OrdinalIgnoreCase))
+                    {
+                        Logger.Info($"Proxy request contains model '{modelName}', attempting to load '{normalized}'.");
+                        var loaded = LmsCommandExecutor.LoadModel(normalized);
+                        if (loaded)
+                        {
+                            config.LmStudioLoadedModel = normalized;
+                            ConfigManager.Save(config);
+                            Logger.Info($"Persisted loaded model '{normalized}' in config.");
+                        }
+                        else
+                        {
+                            // Model was already loaded; still sync config just in case
+                            if (!config.LmStudioLoadedModel.Equals(normalized, StringComparison.OrdinalIgnoreCase))
+                            {
+                                config.LmStudioLoadedModel = normalized;
+                                ConfigManager.Save(config);
+                                Logger.Info($"Syncing existing model '{normalized}' to config.");
+                            }
+                        }                    }
+                }
+            }
+        }
+        catch
+        {
+            // ignore JSON parse errors – body might not be JSON
         }
 
         // Verbose Logging

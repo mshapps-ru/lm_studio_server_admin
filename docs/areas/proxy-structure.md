@@ -13,6 +13,14 @@ The controller also handles timeouts (5 min) and graceful error responses when 
 ## Authentication
 Proxy requests inherit the same authentication scheme as other API endpoints: a Bearer token in the `Authorization` header or a cookie named `token`.  If no token is present, a **401 Unauthorized** response is returned.
 
+## Model Loading
+When a proxied request contains a JSON body with a `model` field, the proxy will:
+1. **Unload all currently loaded models** via `lms unload --all`.  This guarantees that only one model instance is active.
+2. Load the requested model using `lms load <name>`.
+3. Persist the model name in the server configuration (`config.json` field `LmStudioLoadedModel`).  This value is used for UI status displays but is not relied upon to determine runtime state.
+
+The new logic eliminates duplicate loading and ensures consistent state even after manual unloads.
+
 ## Error Handling
 | HTTP status | Reason |
 |-------------|--------|

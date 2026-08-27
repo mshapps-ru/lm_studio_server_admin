@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text.RegularExpressions;
 using System.Text;
 using LmStudioServerAdmin.Config;
+using System.Linq;
 using LmStudioServerAdmin.Logging;
 
 namespace LmStudioServerAdmin.Commands;
@@ -84,18 +85,18 @@ public static class LmsCommandExecutor
                     _cachedLoadedModels.Clear();
                     var allOutput = output + "\n" + error;
                     var lines = allOutput.Replace("\r", "").Split('\n');
+                    var seenBase = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                     foreach (var line in lines)
                     {
                         var trimmed = line.Trim();
-                        // Ищем строки формата "name - size" (например "gpt-oss-20b - 12.11 GB")
-                        // Строка должна содержать " - " и заканчиваться на GB/MB
                         if (trimmed.Contains(" - ") && (trimmed.EndsWith("GB") || trimmed.EndsWith("MB") || trimmed.EndsWith("TB")))
                         {
-                            // Убираем возможные символы-маркеры в начале (•, ·, -, *)
                             var content = Regex.Replace(trimmed, @"^[••·\-\*]\s*", "").Trim();
                             if (!string.IsNullOrEmpty(content))
                             {
-                                _cachedLoadedModels.Add(content);
+                                var baseName = GetBaseName(content);
+                                if (seenBase.Add(baseName)) // add only first occurrence
+                                    _cachedLoadedModels.Add(content);
                             }
                         }
                     }
@@ -228,6 +229,97 @@ public static class LmsCommandExecutor
         lock (_lock)
             return new List<string>(_cachedLoadedModels);
     }
+
+    // Load a model via `lms load <name>` after unloading all previous models.
+    public static bool LoadModel(string modelName)
+    {
+        if (string.IsNullOrWhiteSpace(modelName))
+            return false;
+        lock (_lock)
+        {
+            try
+            {
+                // Unload everything first
+                UnloadAllModels();
+
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = "lms",
+                    Arguments = $"load {modelName}",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using var process = Process.Start(startInfo);
+                if (process == null) return false;
+                process.WaitForExit(10000);
+                var output = process.StandardOutput.ReadToEnd();
+                var error = process.StandardError.ReadToEnd();
+                if (!process.HasExited || process.ExitCode != 0)
+                {
+                    Logger.Error($"Failed to load model {modelName}: {error}");
+                    return false;
+                }
+                _cachedLoadedModels.Add(modelName);
+                Logger.Info($"Model {modelName} loaded successfully");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"Error loading model {modelName}: {ex.Message}", ex);
+                return false;
+            }
+        }
+    }
+
+    // Helper to get base name (part before ':' if present)
+    private static string GetBaseName(string fullName) => fullName.Contains(":") ? fullName.Split(':')[0] : fullName;
+
+    // Helper to unload a specific model instance.
+    private static bool UnloadModel(string modelName)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = "lms",
+            Arguments = $"unload {modelName}",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        using var process = Process.Start(startInfo);
+        if (process == null) return false;
+        process.WaitForExit(10000);
+        var error = process.StandardError.ReadToEnd();
+        if (!process.HasExited || process.ExitCode != 0)
+        {
+            Logger.Error($"Failed to unload model {modelName}: {error}");
+            return false;
+        }
+        _cachedLoadedModels.RemoveAll(m => m.Equals(modelName, StringComparison.OrdinalIgnoreCase));
+        Logger.Info($"Model {modelName} unloaded successfully");
+        return true;
+    }
+
+    // Unload all models using lms unload --all.
+    private static void UnloadAllModels()
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = "lms",
+            Arguments = "unload --all",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        using var process = Process.Start(startInfo);
+        if (process == null) return;
+        process.WaitForExit(10000);
+        _cachedLoadedModels.Clear();
+    }
+
 
     public static void SetLmStudioPort(int port)
     {

@@ -39,6 +39,15 @@ public static class Program
         {
             StartServices();
 
+            // Auto‑load persisted model on startup if specified
+            if (!string.IsNullOrWhiteSpace(_config!.LmStudioLoadedModel))
+            {
+                Logger.Info($"Attempting to auto-load persisted model '{_config.LmStudioLoadedModel}' at startup.");
+                var loaded = LmsCommandExecutor.LoadModel(_config.LmStudioLoadedModel);
+                if (loaded)
+                    ConfigManager.Save(_config!);
+            }
+
             Console.WriteLine("===========================================");
             Console.WriteLine("  LmStudioServerAdmin is running");
             Console.WriteLine($"  Web interface: http://localhost:{_config!.Port}");
