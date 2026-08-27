@@ -72,33 +72,26 @@ public static class HomeController
 
     public static void GetLmStudioInfo(HttpListenerContext context, Config.AppConfig config)
     {
-        var lmStudioPort = LmsCommandExecutor.GetLmStudioPort();
+        // Обновляем статус и модели из lms status
         var currentStatus = LmsCommandExecutor.GetStatus();
+        var lmStudioPort = LmsCommandExecutor.GetLmStudioPort();
+        var loadedModels = LmsCommandExecutor.GetLoadedModels();
 
-        // Получаем модель — пробуем через API
-        string currentModel = "N/A";
-        try
+        string modelDisplay;
+        if (loadedModels.Count > 0)
         {
-            var modelsRequest = (HttpWebRequest)WebRequest.Create($"http://localhost:{lmStudioPort}/v1/models");
-            using var modelsResponse = (HttpWebResponse)modelsRequest.GetResponse();
-            using var reader = new StreamReader(modelsResponse.GetResponseStream());
-            var modelsJson = reader.ReadToEnd();
-            var models = JsonSerializer.Deserialize<ModelsResponse>(modelsJson, _jsonOptions);
-            if (models?.Data?.Count > 0)
-            {
-                currentModel = models.Data[0].Id;
-            }
+            modelDisplay = string.Join(", ", loadedModels);
         }
-        catch
+        else
         {
-            currentModel = "No model loaded";
+            modelDisplay = "No model loaded";
         }
 
         var response = JsonSerializer.Serialize(new
         {
             port = lmStudioPort,
             status = currentStatus.ToString().ToLower(),
-            model = currentModel,
+            model = modelDisplay,
             connected = currentStatus == LmsStatus.Running
         }, _jsonOptions);
 

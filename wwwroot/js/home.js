@@ -25,7 +25,15 @@ const Home = {
         const statusEl = document.getElementById('lmstudio-connection-status');
 
         if (portEl) portEl.textContent = data.port || '—';
-        if (modelEl) modelEl.textContent = data.model || '—';
+        if (modelEl) {
+            modelEl.textContent = data.model || '—';
+            // Подсветка: если модель загружена — зелёным, иначе — серым
+            if (data.model && data.model !== 'No model loaded') {
+                modelEl.style.color = 'var(--success)';
+            } else {
+                modelEl.style.color = 'inherit';
+            }
+        }
         if (statusEl) {
             statusEl.textContent = data.connected ? 'Connected' : 'Disconnected';
             statusEl.style.color = data.connected ? 'var(--success)' : 'var(--danger)';

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.RegularExpressions;
+using System.Text;
 using LmStudioServerAdmin.Logging;
 
 namespace LmStudioServerAdmin.Commands;
@@ -16,6 +17,7 @@ public static class LmsCommandExecutor
 {
     private static LmsStatus _cachedStatus = LmsStatus.Unknown;
     private static int _cachedLmStudioPort = 1234;
+    private static readonly List<string> _cachedLoadedModels = new();
     private static readonly object _lock = new();
 
     public static LmsStatus GetStatus()
@@ -27,7 +29,7 @@ public static class LmsCommandExecutor
                 var startInfo = new ProcessStartInfo
                 {
                     FileName = "lms",
-                    Arguments = "server status",
+                    Arguments = "status",
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
@@ -41,8 +43,8 @@ public static class LmsCommandExecutor
                 var output = process?.StandardOutput.ReadToEnd() ?? "";
                 var error = process?.StandardError.ReadToEnd() ?? "";
 
-                Logger.Info($"lms server status output: [{output}]");
-                Logger.Info($"lms server status error: [{error}]");
+                Logger.Info($"lms status output: [{output}]");
+                Logger.Info($"lms status error: [{error}]");
 
                 if (process != null && process.HasExited && process.ExitCode == 0)
                 {
@@ -70,6 +72,31 @@ public static class LmsCommandExecutor
                     {
                         _cachedLmStudioPort = port;
                         Logger.Info($"Detected LM Studio port from output: {_cachedLmStudioPort}");
+                    }
+
+                    // Парсим загруженные модели (объединяем stdout + stderr)
+                    // Формат: "  · gpt-oss-20b - 12.11 GB" или "  • gpt-oss-20b - 12.11 GB"
+                    _cachedLoadedModels.Clear();
+                    var allOutput = output + "\n" + error;
+                    var lines = allOutput.Replace("\r", "").Split('\n');
+                    foreach (var line in lines)
+                    {
+                        var trimmed = line.Trim();
+                        // Ищем строки формата "name - size" (например "gpt-oss-20b - 12.11 GB")
+                        // Строка должна содержать " - " и заканчиваться на GB/MB
+                        if (trimmed.Contains(" - ") && (trimmed.EndsWith("GB") || trimmed.EndsWith("MB") || trimmed.EndsWith("TB")))
+                        {
+                            // Убираем возможные символы-маркеры в начале (•, ·, -, *)
+                            var content = Regex.Replace(trimmed, @"^[••·\-\*]\s*", "").Trim();
+                            if (!string.IsNullOrEmpty(content))
+                            {
+                                _cachedLoadedModels.Add(content);
+                            }
+                        }
+                    }
+                    if (_cachedLoadedModels.Count > 0)
+                    {
+                        Logger.Info($"Loaded models parsed: {string.Join(", ", _cachedLoadedModels)}");
                     }
                 }
                 else
@@ -185,6 +212,12 @@ public static class LmsCommandExecutor
     {
         lock (_lock)
             return _cachedLmStudioPort;
+    }
+
+    public static List<string> GetLoadedModels()
+    {
+        lock (_lock)
+            return new List<string>(_cachedLoadedModels);
     }
 
     public static void SetLmStudioPort(int port)
