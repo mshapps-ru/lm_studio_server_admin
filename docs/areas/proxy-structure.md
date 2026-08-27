@@ -11,7 +11,7 @@ The **LmStudioProxyController** forwards API requests from the admin server to a
 The controller also handles timeouts (5 min) and graceful error responses when the LM Studio service is unreachable.
 
 ## Authentication
-Proxy requests inherit the same authentication scheme as other API endpoints: a Bearer token in the `Authorization` header or a cookie named `token`.  If no token is present, a **403 Forbidden** response is returned.
+Proxy requests inherit the same authentication scheme as other API endpoints: a Bearer token in the `Authorization` header or a cookie named `token`.  If no token is present, a **401 Unauthorized** response is returned.
 
 ## Error Handling
 | HTTP status | Reason |

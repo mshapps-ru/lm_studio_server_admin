@@ -45,8 +45,11 @@ public static class LmsCommandExecutor
                 var output = process?.StandardOutput.ReadToEnd() ?? "";
                 var error = process?.StandardError.ReadToEnd() ?? "";
 
-                Logger.Info($"lms status output: [{output}]");
-                Logger.Info($"lms status error: [{error}]");
+                if (config.VerboseLogging)
+                {
+                    Logger.Info($"lms status output: [{output}]");
+                    Logger.Info($"lms status error: [{error}]");
+                }
 
                 if (process != null && process.HasExited && process.ExitCode == 0)
                 {

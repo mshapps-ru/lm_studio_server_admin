@@ -4,13 +4,13 @@
 The backend exposes a simple REST‑style HTTP API that is served by **HttpServer**. All endpoints are protected with a session token that is created on login and stored in memory.
 
 ```
-POST   /api/login     – Authenticate user, returns { success, token }
+POST   /api/login     – Authenticate user, returns `{ success, token }`
 POST   /api/logout    – Invalidate session token, returns { success }
 GET    /api/status    – Current status of LM‑Studio Server (running/stopped)
 POST   /api/start     – Start the server process
 POST   /api/stop      – Stop the server process
-GET    /api/settings  – Retrieve current username & port
-PUT    /api/settings  – Update username (optional), password (optional) and/or port.
+GET    /api/settings  – Retrieve current username, port and verbose logging flag
+PUT    /api/settings  – Update username (optional), password (optional), port (optional) and verboseLogging (optional)
 GET    /api/lmstudio/info         – LM Studio Server info (port, model, connection status)
 GET    /api/settings/lmstudio     – LM Studio settings (port, bind address)
 POST   /api/settings/lmstudio/detect – Auto-detect LM Studio Server port

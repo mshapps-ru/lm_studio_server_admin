@@ -30,7 +30,8 @@
 | Login/Logout | Token is issued on `/api/login`, invalidated by `/api/logout`. |
 | Home Tab | Shows current LM Studio status, Start & Stop buttons, and LM Studio connection info (port, model, connected status).
 | Settings Tab | Edit admin credentials and listening port; changes are written to `config.json` and trigger a server restart if the port changes.
-| LM Studio Settings | Configure LM Studio Server port and bind address; auto-detect port from `lms server status`.
++| Verbose Logging | Toggle in Settings to enable detailed proxy request/response logs. |
+| LM Studio Settings | Configure LM Studio Server port and bind address; auto-detect port from `lms server status`. |
 | API Proxy | Proxies `/v1/*` and `/api/v1/*` requests to LM Studio Server for remote access.
 | Automatic Status Refresh | Background task polls LM Studio every 60 s. |
 | Logging | File logger (`logs/app.log`) with INFO/WARN/ERROR levels. |
