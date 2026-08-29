@@ -28,6 +28,18 @@ namespace LmStudioServerAdmin
             try
             {
                 Program.StartServices();
+            // Auto-start LM Studio Server if configured
+            if (Program._config != null && Program._config.LmStudioServerAutoStart)
+            {
+                try
+                {
+                    LmsCommandExecutor.StartServer();
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error($"Failed to auto‑start LM Studio Server: {ex.Message}", ex);
+                }
+            }
             }
             catch (Exception ex)
             {
