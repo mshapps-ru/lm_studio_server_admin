@@ -9,7 +9,7 @@ POST   /api/logout    – Invalidate session token, returns { success }
 GET    /api/status    – Current status of LM‑Studio Server (running/stopped)
 POST   /api/start     – Start the server process
 POST   /api/stop      – Stop the server process
-GET    /api/settings  – Retrieve current username, port, verbose logging flag, and LM Studio settings
+GET    /api/settings  – Retrieve current username, port, and verbose logging flag
 PUT    /api/settings  – Update username (optional), password (optional), port (optional) and verboseLogging (optional)
 
 GET    /api/lmstudio/info         – LM Studio Server info (port, model, connection status)
