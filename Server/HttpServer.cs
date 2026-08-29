@@ -192,15 +192,16 @@ public class HttpServer : IDisposable
             // Static files
             if (path == "/" || path == "/index.html")
             {
-                ServeFile(context, "text/html", "wwwroot/index.html");
+                var indexPath = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "wwwroot", "index.html"));
+                ServeFile(context, "text/html", indexPath);
                 return;
             }
 
             if (path.StartsWith("/css/"))
             {
-                var cssFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot", "css", path.Substring(5));
-                if (File.Exists(cssFile))
-                    ServeFile(context, "text/css", cssFile);
+                var cssPath = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "wwwroot", "css", path.Substring(5)));
+                if (File.Exists(cssPath))
+                    ServeFile(context, "text/css", cssPath);
                 else
                     SendNotFound(context);
                 return;
@@ -208,9 +209,9 @@ public class HttpServer : IDisposable
 
             if (path.StartsWith("/js/"))
             {
-                var jsFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot", "js", path.Substring(4));
-                if (File.Exists(jsFile))
-                    ServeFile(context, "application/javascript", jsFile);
+                var jsPath = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "wwwroot", "js", path.Substring(4)));
+                if (File.Exists(jsPath))
+                    ServeFile(context, "application/javascript", jsPath);
                 else
                     SendNotFound(context);
                 return;
