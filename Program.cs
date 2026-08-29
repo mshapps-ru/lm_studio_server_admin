@@ -10,6 +10,7 @@ public static class Program
 {
     private static HttpServer? _httpServer;
     private static StatusChecker? _statusChecker;
+    private static ModelListUpdater? _modelListUpdater;
     private static AppConfig? _config;
 
     public static void Main(string[] args)
@@ -97,6 +98,8 @@ public static class Program
         // Запуск HTTP сервера
         _httpServer = new HttpServer(_config!);
         _httpServer.Start();
+            // Start model list updater
+            _modelListUpdater = new ModelListUpdater(_config!.LmStudioPort, TimeSpan.FromMinutes(5));
 
         // Запуск проверки статуса
         _statusChecker = new StatusChecker(status =>
@@ -118,6 +121,7 @@ public static class Program
     private static void StopServices()
     {
         Logger.Info("Shutting down...");
+        _modelListUpdater?.Dispose();
         _statusChecker?.Dispose();
         _httpServer?.Dispose();
         Logger.Info("Shutdown complete");

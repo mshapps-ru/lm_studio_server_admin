@@ -1,92 +1,105 @@
-# Load Models List and Parameters Plan
+# Plan for Implementing Model List Loading and Parameter Management
 
-## 1. Context & Goals
-The task is to extend the **LM Studio Server Admin** project so that:
+## 1. Project Context
+The repository is a **LM‑Studio Server Admin** backend written in C#. It exposes several REST endpoints to control the LM‑Studio Server, including proxying `/v1/*` requests. The project already contains configuration files (`config.json`) and a `Program.cs` entry point.
 
-* The list of available models from the LM‑Studio `/v1/models` endpoint is fetched automatically every 5 minutes.
-* That list is persisted in `config.json` under the key `LmStudioModelList`.
-* Default load parameters (context window, ttl, …) are stored under `LmStudioModelDefaultLoadParameter`.
-* Individual model‑specific load parameters may override defaults and are stored under `LmStudioModelLoadParameterList`.
-* All changes to the config file must be applied only when the data actually changed; errors during fetch should be logged but ignored.
+## 2. Initial Analysis Steps
+1. **Review the existing documentation** – Inspect all Markdown files under `docs/`. Pay particular attention to sections describing API endpoints, configuration, and how models are loaded via the `lms load` command.
+2. **Read the source code** that handles `/v1/*` proxying, scheduled tasks, and configuration parsing (`Program.cs`, `Service/*.cs`).
+3. **Identify current config structure** – locate the current `config.json` to understand its schema (currently holds LM‑Studio settings).
+4. **Confirm availability of a background scheduler** in the project – look for any timer or scheduled task infrastructure.
+5. **Verify logging facilities** – ensure we can write logs when fetching models fails.
 
-The plan below walks through analysis, questions, design decisions, implementation steps, testing strategy and a final To‑Do list.
+## 3. Questions to Clarify
+- **Q1:** Does the project already contain a mechanism for periodic tasks (e.g., `System.Threading.Timer` or Hangfire)?
+- **Q2:** Where is the LM‑Studio Server API base URL stored? Is it part of configuration or hard‑coded?
+- **Q3:** How are command‑line parameters currently passed to `lms load` from within the code? If none, will we need a wrapper around the CLI?
+- **Q4:** Are there any security considerations for storing model names and default parameters in plain JSON?
+- **Q5:** Is there an existing unit‑test framework (xUnit/MSTest) that we should integrate tests into?
 
-## 2. Current Understanding (from docs & code)
-* **`config.json`** is loaded/saved by `ConfigManager`.  It already contains a field for the currently *loaded* model (`LmStudioLoadedModel`).
-* **Proxy controller** already parses request bodies for a `model` key and calls `LmsCommandExecutor.LoadModel()`.
-* **`AppConfig`** serializes to JSON automatically – adding new properties is straightforward.
-* No scheduled background task exists; the only recurring job is the proxy handling.
+The answers to these will be incorporated into the plan once obtained.
 
-### Gaps that need clarification
-1. Exact shape of the `/v1/models` response.
-2. Whether the list should include *all* objects returned by `/v1/models` or a filtered subset.
-3. How to detect “changed” – a simple JSON string comparison will suffice for now.
-4. Where in the code base to wire the 5‑minute timer (e.g., `Program.cs`, a dedicated background service). 
+## 4. Data Structures & File Format
+1. **`config.json`** will be extended with three new top‑level keys:
+   - `LmStudioModelList`: Array of objects `{id, object, owned_by}` fetched from `/v1/models`.
+   - `LmStudioModelDefaultLoadParameter`: Object mapping key‑value pairs (e.g., `contextWindow`, `ttl`).
+   - `LmStudioModelLoadParameterList`: Array of objects each containing `model` and any overriding parameters.
+2. All values will be stored as simple JSON primitives to allow future modifications without code changes.
 
-## 3. Questions & Answers (to be refined by user)
-| # | Question | Current answer / assumption |
-|---|----------|----------------------------|
-|1| What fields are present in the `/v1/models` JSON? | Likely an array of `{id, object, owned_by}` similar to OpenAI API.
-|2| Do we need to handle pagination or large lists? | Assume single request returns full list; if needed later add paging logic.
-|3| Should the timer run even if the server is stopped? | No – only when the HTTP service is running.
-|4| Where should errors be logged? | Use `Logger.Error` in the fetch method, no crash.
+## 5. API Interaction Logic
+- **Endpoint**: `GET /v1/models`
+- **Response format**: `{ "data": [ {"id": "gpt-oss-20b", "object": "model", "owned_by": "organization_owner" }, … ] }
+- Parse the `data` array and map each entry to the `LmStudioModelList` structure.
+- Compare the new list with the current one stored in `config.json`. If identical, skip writing; else overwrite the file.
 
-## 4. Design Decisions
-* **Background task**: create a static async `ModelUpdater.StartAsync()` that schedules a `Timer`. It will run every 5 min and invoke `UpdateModelsListAsync()`.
-* **Fetching**: use `HttpClient` to GET `http://localhost:{LmStudioPort}/v1/models`.
-* **Deserialization**: map JSON array directly into `ModelInfo[]` (class defined in a new file).
-* **Change detection**: keep the previous JSON string; compare with new one. If identical, skip write.
-* **Config structure**: add properties to `AppConfig` and ensure serialization handles them.
-* **Load parameters**: similar approach – expose two lists in config and use them when executing a load command.
+## 6. Scheduling Mechanism
+- Use the existing scheduler (if any) or add a `System.Threading.Timer` that triggers every **5 minutes**.
+- On each tick:
+   1. Fetch models from `/v1/models`.
+   2. If HTTP error or JSON parse failure → log warning, do nothing else.
+   3. Otherwise → update config file as described in section 5.
 
-## 5. Implementation Steps (in order)
-1. **Define model DTOs** (`ModelInfo`, `DefaultLoadParameter`, `IndividualLoadParameter`).
-2. **Extend `AppConfig`** to include:
-   ```csharp
-   public List<ModelInfo> LmStudioModelList { get; set; } = new();
-   public List<DefaultLoadParameter> LmStudioModelDefaultLoadParameter { get; set; } = new();
-   public List<IndividualLoadParameter> LmStudioModelLoadParameterList { get; set; } = new();
-   ```
-3. **Add a static `ModelUpdater` class** in a suitable namespace (e.g., `LmStudioServerAdmin.Background`).  It will:
-   * Accept the current `AppConfig` and an `ILogger`.
-   * Use a `Timer` to trigger every 5 min.
-   * In each tick, call `FetchModelsAsync()`, compare JSON, update config if changed.
-4. **Implement `FetchModelsAsync()`**:
-   * Build URL using config's `LmStudioPort`.
-   * Perform GET; on non‑200 status log error and return null.
-   * Deserialize to `ModelInfo[]`.
-5. **Write back to config** when changed – call `ConfigManager.Save(config)`.
-6. **Hook into startup** (`Program.cs`) after loading config: `ModelUpdater.StartAsync(config, Logger.Instance);`
-7. **Implement parameter resolution logic** in `LmsCommandExecutor.LoadModel()`:
-   * Build command arguments from defaults + overrides (individual list takes precedence).
-   * Pass them to the external CLI.
-8. **Unit Tests**:
-   * Mock HTTP responses for `/v1/models` and verify config updates.
-   * Test that unchanged lists do not trigger a write.
-9. **Integration test**: start server, let timer run twice, ensure config contains expected models.
-10. **Documentation update** – add section to `docs/areas/backend-api-structure.md` explaining the new background task.
+## 7. Error Handling & Logging
+- On any exception during fetch/parsing, write a log entry: `Failed to retrieve model list from /v1/models – <error details>`.
+- Ensure that no partial writes corrupt `config.json` (write to temp file then atomic rename).
 
-## 6. Risks & Mitigations
-| Risk | Mitigation |
-|------|------------|
-| Timer leaks on application exit | Dispose timer in `AppDomain.ProcessExit` handler.
-| Config file corruption from concurrent writes | Use a single thread (Timer callback serialises). 
-| Network failures | Log and ignore; retry next cycle.
+## 8. Default Load Parameters
+- Store in `LmStudioModelDefaultLoadParameter` as an object of key‑value pairs.
+- Example:
+```json
+{"contextWindow": 100000, "ttl": 600}
+```
+- This represents the base parameters for any model unless overridden.
 
-## 7. Deliverables
-* Updated `AppConfig.cs` with new properties.
-* New DTO classes in `/src/Models/ModelInfo.cs` (or similar).
-* Background service class `ModelUpdater.cs`.
-* Extension to `LmsCommandExecutor.LoadModel()` for parameter handling.
-* Unit tests under `/tests`.
-* Updated docs and README.
+## 9. Individual Model Load Parameters
+- Stored in `LmStudioModelLoadParameterList` as an array of objects each containing a mandatory `model` field and optional overrides.
+- Example:
+```json
+[{"model": "gpt-oss-20b", "contextWindow": 120000, "ttl": 1200}]
+```
+- On startup or when loading a model via CLI wrapper, merge defaults with the override if present; else use defaults.
 
-## 8. Next Steps
-1. Clarify questions above.
-2. Once confirmed, start implementing the DTOs and config updates.
-3. Then proceed to the background updater.
-4. Finally, integrate parameter logic into load command.
-5. Write tests and update documentation.
+## 10. Parameter Precedence Logic
+1. Load `LmStudioModelDefaultLoadParameter` into a base dictionary.
+2. For each individual entry in `LmStudioModelLoadParameterList`, create a merged dictionary where keys from the individual entry overwrite those in the default.
+3. When executing `lms load <model>`:
+   - If an override exists for `<model>`, use its merged parameters.
+   - Otherwise, use the base defaults.
+
+## 11. CLI Wrapper Plan (if needed)
+- Provide a small C# helper method that constructs the command string: `lms load {id} --context-length <value> --ttl <value>`.
+- Use the parameter dictionary from section 10 to fill values.
+- Execute via `Process.Start` with redirected output for logging.
+
+## 12. Testing Strategy
+- **Unit tests**:
+   - Verify JSON parsing of `/v1/models` response.
+   - Compare old vs new model list detection logic.
+   - Validate parameter merging precedence.
+- **Integration test** (mocked):
+   - Simulate a scheduler tick and confirm `config.json` is updated only when changes occur.
+
+## 13. Documentation Updates
+- Update `docs/areas/backend-api-structure.md` to note the new `/v1/models` polling behavior.
+- Add a short section in `README.md` describing how model parameters are configured via `config.json`.
+
+## 14. Implementation Roadmap (High‑Level)
+1. **Analysis** – Complete steps 1–4, answer questions.
+2. **Design** – Finalize data structures and schedule integration.
+3. **Implement Scheduler & Fetcher** – Add timer, HTTP client logic, JSON handling.
+4. **File Write Logic** – Atomic write with temp file.
+5. **Parameter Merge Helper** – Create method for defaults + overrides.
+6. **CLI Wrapper (if required)** – Wrap `lms load` calls.
+7. **Tests** – Add unit and integration tests.
+8. **Docs** – Update Markdown files.
+9. **Review & Commit** – Ensure all changes are versioned.
+
+## 15. Deliverables
+- Updated `config.json` schema documentation in code comments.
+- Scheduler implementation in the main program or a dedicated service class.
+- Parameter merge utility.
+- Tests and updated docs.
 
 ---
-**Note:** This plan assumes a straightforward JSON array from `/v1/models`.  If the real shape differs, adjust DTOs accordingly.
+
+*All tasks above should be reviewed once we confirm answers to Section 3 questions.*

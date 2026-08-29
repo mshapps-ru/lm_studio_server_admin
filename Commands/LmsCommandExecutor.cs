@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using System.Text.RegularExpressions;
-using System.Text;
+using System.Text; // for StringBuilder
 using LmStudioServerAdmin.Config;
 using System.Linq;
 using LmStudioServerAdmin.Logging;
@@ -235,18 +235,33 @@ public static class LmsCommandExecutor
     {
         if (string.IsNullOrWhiteSpace(modelName))
             return false;
+
+        // Load configuration for default and override parameters
+        var config = ConfigManager.Load();
+        var finalParams = new Dictionary<string, int?>();
+        if (config.LmStudioModelDefaultLoadParameter != null)
+            foreach (var kv in config.LmStudioModelDefaultLoadParameter)
+                finalParams[kv.Key] = kv.Value;
+
+        var overrideEntry = config.LmStudioModelLoadParameterList?.FirstOrDefault(e => string.Equals(e.Model, modelName, StringComparison.OrdinalIgnoreCase));
+        if (overrideEntry?.Parameters != null)
+            foreach (var kv in overrideEntry.Parameters)
+                finalParams[kv.Key] = kv.Value;
+
         lock (_lock)
         {
             try
             {
-                // Unload everything first
                 UnloadAllModels();
 
                 var baseModel = GetBaseName(modelName);
+                var argsBuilder = new StringBuilder($"load {baseModel}");
+                AppendParams(argsBuilder, finalParams);
+
                 var startInfo = new ProcessStartInfo
                 {
                     FileName = "lms",
-                    Arguments = $"load {baseModel}",
+                    Arguments = argsBuilder.ToString(),
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
@@ -265,7 +280,6 @@ public static class LmsCommandExecutor
                 _cachedLoadedModels.Add(baseModel);
                 Logger.Info($"Model {baseModel} loaded successfully");
 
-                // Wait up to 5 seconds for LM Studio to report the model as loaded
                 var start = DateTime.UtcNow;
                 while ((DateTime.UtcNow - start).TotalSeconds < 5)
                 {
@@ -287,6 +301,21 @@ public static class LmsCommandExecutor
 
     // Helper to get base name (part before ':' if present)
     private static string GetBaseName(string fullName) => fullName.Contains(":") ? fullName.Split(':')[0] : fullName;
+
+    // Helper to append parameters as CLI flags
+    private static void AppendParams(StringBuilder builder, Dictionary<string,int?> parameters)
+    {
+        foreach(var kv in parameters)
+        {
+            if(!kv.Value.HasValue) continue;
+            string flag = kv.Key switch
+            {
+                "contextWindow" => $"--context-length {kv.Value.Value}",
+                _ => $"--{kv.Key} {kv.Value.Value}",
+            };
+            builder.Append(' ' + flag);
+        }
+    }
 
     // Helper to unload a specific model instance.
     private static bool UnloadModel(string modelName)
