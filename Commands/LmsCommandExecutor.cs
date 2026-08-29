@@ -77,7 +77,11 @@ public static class LmsCommandExecutor
                     if (portMatch.Success && int.TryParse(portMatch.Groups[1].Value, out var port) && port > 0)
                     {
                         _cachedLmStudioPort = port;
-                        Logger.Info($"Detected LM Studio port from output: {_cachedLmStudioPort}");
+
+                        if (config.VerboseLogging)
+                        {
+                            Logger.Info($"Detected LM Studio port from output: {_cachedLmStudioPort}");
+                        }
                     }
 
                     // Парсим загруженные модели (объединяем stdout + stderr)

@@ -13,8 +13,8 @@
 * **HTTP Port** – listens on port **7778** (configurable via `config.json`).
 * **UI** – simple single‑page app (SPA) served from `/wwwroot`. After successful login it shows two tabs:
   * **Home** – status panel + *Start/Stop* buttons + LM Studio connection info (port, model, connected status).
-  * **Settings** – edit admin credentials, listening port, and LM Studio Server settings (port, bind address) with auto-detect.
-* **API Proxy** – forwards `/v1/*` and `/api/v1/*` requests to LM Studio Server for remote access.
+  * **Settings** – edit admin credentials, listening port, and LM Studio Server settings (port, bind address) with auto‑detect.
+* **API Proxy** – forwards `/v1/*` and `/api/v1/*` requests to LM Studio Server for remote access.
 * **Authentication** – token based session stored in a cookie or `Authorization` header. Passwords are hashed with SHA‑256 on first login.
 * **LM Studio Interaction** – commands executed through the external CLI (`lms server start/stop/status`). Status is cached and refreshed every minute.
 * **Configuration** – persisted in `config.json` located next to the executable.
@@ -28,12 +28,12 @@
 | Console & Service | Same binary works both as a console app and a Windows service (`-service`). |
 | HTTP Interface | Simple `HttpListener` based server – no heavy framework required. |
 | Login/Logout | Token is issued on `/api/login`, invalidated by `/api/logout`. |
-| Home Tab | Shows current LM Studio status, Start & Stop buttons, and LM Studio connection info (port, model, connected status).
-| Settings Tab | Edit admin credentials and listening port; changes are written to `config.json` and trigger a server restart if the port changes.
+| Home Tab | Shows current LM Studio status, Start & Stop buttons, and LM Studio connection info (port, model, connected status). |
+| Settings Tab | Edit admin credentials and listening port; changes are written to `config.json` and trigger a server restart if the port changes. |
 +| Verbose Logging | Toggle in Settings to enable detailed proxy request/response logs. |
-| LM Studio Settings | Configure LM Studio Server port and bind address; auto-detect port from `lms server status`. |
-| API Proxy | Proxies `/v1/*` and `/api/v1/*` requests to LM Studio Server for remote access.
-| Automatic Status Refresh | Background task polls LM Studio every 60 s. |
+| LM Studio Settings | Configure LM Studio Server port and bind address; auto‑detect port from `lms server status`. |
+| API Proxy | Proxies `/v1/*` and `/api/v1/*` requests to LM Studio Server for remote access. |
+| Automatic Status Refresh | Background task polls LM Studio every 60 s. |
 | Logging | File logger (`logs/app.log`) with INFO/WARN/ERROR levels. |
 | Session Invalidation | Changing the listening port invalidates existing sessions; users must log in again. |
 
@@ -55,9 +55,9 @@ LmStudioServerAdmin/
 │   ├── AuthManager.cs                 # Session handling + password hashing
 │   ├── HomeController.cs              # /api/status, /api/start/stop, /api/lmstudio/info
 │   ├── SettingsController.cs          # /api/settings GET/PUT, /api/settings/lmstudio
-│   └── LmStudioProxyController.cs     # Proxies /v1/* and /api/v1/* to LM Studio Server
+│   └── LmStudioProxyController.cs     # Proxies /v1/* and /api/v1/* to LM Studio Server
 ├── Commands/
-│   └── LmsCommandExecutor.cs         # Executes LM Studio CLI commands
+│   └── LmsCommandExecutor.cs         # Executes LM Studio CLI commands
 ├── Service/
 │   └── StatusChecker.cs              # Background status polling (optional)
 └── wwwroot/                           # SPA assets (index.html, css, js)
@@ -76,12 +76,6 @@ cd LmStudioServerAdmin
 dotnet restore
 
 dotnet publish -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true
-
-
-Сборка и старт в терминале:
-taskkill /F /IM LmStudioServerAdmin.exe; dotnet build; dotnet run
-Запуск хрома с дебагом:
-chrome.exe --remote-debugging-port=9222 
 ```
 
 The resulting executable (`LmStudioServerAdmin.exe`) will be placed under `bin/Release/net10.0/win-x64/publish`.
@@ -113,9 +107,9 @@ Stop-Service -Name "LmStudioServerAdmin"
 
 1. Open `http://localhost:7778/`. You’ll see a login screen.
 2. Use credentials from `config.json` (default *admin/admin*). After successful login you’ll be redirected to the main UI with **Home** and **Settings** tabs.
-3. **Home:** view LM Studio status, click **Start** or **Stop** buttons, see LM Studio connection info (port, model, status).
-4. **Settings:** edit admin credentials, port, and LM Studio Server settings; press **Save**.
-5. Click **Exit** to logout (clears the token and returns to login).
+3. **Home:** view LM Studio status, click **Start** or **Stop** buttons, see LM Studio connection info (port, model, connected status).
+4. **Settings:** edit admin credentials, port, and LM Studio Server settings; press **Save**.
+5. Click **Exit** to logout (clears token and returns to login).
 
 ---
 
@@ -158,7 +152,7 @@ http://<your-IP>:7778
 | `username` | Admin username |
 | `password` | Plain text password — hashed on first login |
 | `port` | Admin server listening port |
-| `lmStudioPort` | LM Studio Server port |
+| `lmStudioPort` | LM Studio Server port |
 | `bindAddress` | Bind address (`0.0.0.0` for all interfaces, `localhost` for local only) |
 +| `verboseLogging` | Boolean flag enabling verbose proxy logging (default false) |
 
@@ -177,3 +171,40 @@ The file is created automatically if missing and is overwritten with the hashed 
 ## 10. License & Credits
 
 This project is open source under the MIT license. It uses only standard .NET libraries (`System.Net.HttpListener`, `Newtonsoft.Json`) and no external dependencies beyond those bundled with the SDK.
+
+---
+
+## Windows Service Management
+
+The application can be registered as a Windows Service so it starts automatically on boot and runs in the background. The binary itself contains commands that invoke the native `sc` tool to create, delete, start, or stop the service.
+
+### Available Commands
+| Argument | Effect |
+|----------|--------|
+| **-createService** | Registers the executable as a Windows Service named **LmStudioServerAdmin**. Requires Administrator privileges. |
+| **-deleteService** | Removes the previously created service. |
+| **-startService** | Starts an existing service immediately. |
+| **-stopService** | Stops a running service. |
+
+> These commands are processed **before** normal application startup, so they do not launch the HTTP server.
+
+### Usage Example
+```bash
+# Register as a service (run as Administrator)
+LmStudioServerAdmin.exe -createService
+
+# Start the service
+LmStudioServerAdmin.exe -startService
+
+# Stop the service
+LmStudioServerAdmin.exe -stopService
+
+# Delete the service registration
+LmStudioServerAdmin.exe -deleteService
+```
+
+After creating the service, you can also manage it via the Windows Services console (`services.msc`) or PowerShell:
+```powershell
+Start-Service -Name "LmStudioServerAdmin"
+Stop-Service -Name "LmStudioServerAdmin"
+```

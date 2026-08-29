@@ -11,15 +11,52 @@ public static class Program
     private static HttpServer? _httpServer;
     private static StatusChecker? _statusChecker;
     private static ModelListUpdater? _modelListUpdater;
-    private static AppConfig? _config;
+    internal static AppConfig? _config;
 
     public static void Main(string[] args)
     {
-        var isService = args.Contains("-service");
+        // Handle service-related command line flags first
+        if (args.Contains("-createService"))
+        {
+            ServiceHelper.CreateService();
+            return;
+        }
+        if (args.Contains("-deleteService"))
+        {
+            ServiceHelper.DeleteService();
+            return;
+        }
+        if (args.Contains("-startService"))
+        {
+            ServiceHelper.StartService();
+            return;
+        }
+        if (args.Contains("-stopService"))
+        {
+            ServiceHelper.StopService();
+            return;
+        }
+
+        bool isServiceMode = !Environment.UserInteractive;
+        Logger.Info("=== LmStudioServerAdmin starting ===");
+        if (isServiceMode)
+        {
+            // Load configuration before service starts
+            _config = ConfigManager.Load();
+            LmsCommandExecutor.SetLmStudioPort(_config.LmStudioPort);
+            Logger.Info($"Config loaded: username={_config.Username}, port={_config.Port}, lmStudioPort={_config.LmStudioPort}, bindAddress={_config.BindAddress}");
+            // Run as Windows Service using ServiceBase
+            #pragma warning disable CA1416 // ServiceBase only on Windows
+            System.ServiceProcess.ServiceBase.Run(new WindowsService());
+            #pragma warning restore CA1416
+            return;
+        }
+
+        var isService = false;
 
         Logger.Info("=== LmStudioServerAdmin starting ===");
 
-        // Загрузка настроек
+        // Загрузка настроек (для консольного режима)
         _config = ConfigManager.Load();
         LmsCommandExecutor.SetLmStudioPort(_config.LmStudioPort);
         Logger.Info($"Config loaded: username={_config.Username}, port={_config.Port}, lmStudioPort={_config.LmStudioPort}, bindAddress={_config.BindAddress}");
@@ -93,7 +130,7 @@ public static class Program
         }
     }
 
-    private static void StartServices()
+    internal static void StartServices()
     {
         // Запуск HTTP сервера
         _httpServer = new HttpServer(_config!);
@@ -118,7 +155,7 @@ public static class Program
         StartServices();
     }
 
-    private static void StopServices()
+    internal static void StopServices()
     {
         Logger.Info("Shutting down...");
         _modelListUpdater?.Dispose();
