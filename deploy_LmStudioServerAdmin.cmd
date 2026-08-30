@@ -1,5 +1,5 @@
 @echo off
-chcp 866 >nul
+chcp 1251 >nul
 setlocal
 
 taskkill /F /IM LmStudioServerAdmin.exe 
@@ -12,16 +12,16 @@ set DEST_DIR=D:\WorkHome\AppForDevelop\LmStudioServerAdmin
 set SOURCE_DIR=D:\WorkHome\T3Code\lm_studio_server_admin\bin\Debug\net10.0
 
 echo ========================================
-echo РћСЃС‚Р°РЅРѕРІРєР° СЃР»СѓР¶Р±С‹ %SERVICE_NAME%...
+echo Остановка службы %SERVICE_NAME%...
 echo ========================================
 net stop %SERVICE_NAME% 2^>nul
 if %errorlevel% neq 0 (
-    echo РЎР»СѓР¶Р±Р° СѓР¶Рµ РѕСЃС‚Р°РЅРѕРІР»РµРЅР° РёР»Рё РЅРµ РЅР°Р№РґРµРЅР°.
+    echo Служба уже остановлена или не найдена.
 )
 
 echo.
 echo ========================================
-echo РћС‡РёСЃС‚РєР° С†РµР»РµРІРѕР№ РґРёСЂРµРєС‚РѕСЂРёРё...
+echo Очистка целевой директории...
 echo ========================================
 for /F "delims=" %%F in ('dir "%DEST_DIR%\*" /B /A-D 2^>nul') do (
     if /I not "%%F"=="config.json" (
@@ -38,29 +38,29 @@ for /D /R "%DEST_DIR%" %%D in (*) do (
 
 echo.
 echo ========================================
-echo РљРѕРїРёСЂРѕРІР°РЅРёРµ С„Р°Р№Р»РѕРІ РёР· РёСЃС‚РѕС‡РЅРёРєР°...
+echo Копирование файлов из источника...
 echo ========================================
 robocopy "%SOURCE_DIR%" "%DEST_DIR%" /E /NFL /NDL /NJH /NJS
 
 if %errorlevel% leq 1 (
-    echo РљРѕРїРёСЂРѕРІР°РЅРёРµ Р·Р°РІРµСЂС€РµРЅРѕ СѓСЃРїРµС€РЅРѕ.
+    echo Копирование завершено успешно.
 ) else (
-    echo WARNING: РџСЂРё РєРѕРїРёСЂРѕРІР°РЅРёРё РІРѕР·РЅРёРєР»Рё РїСЂРѕР±Р»РµРјС‹.
+    echo WARNING: При копировании возникли проблемы.
 )
 
 echo.
 echo ========================================
-echo Р—Р°РїСѓСЃРє СЃР»СѓР¶Р±С‹ %SERVICE_NAME%...
+echo Запуск службы %SERVICE_NAME%...
 echo ========================================
 net start %SERVICE_NAME%
 if %errorlevel% neq 0 (
-    echo ERROR: РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РїСѓСЃС‚РёС‚СЊ СЃР»СѓР¶Р±Сѓ.
+    echo ERROR: Не удалось запустить службу.
     exit /B 1
 )
 
 echo.
 echo ========================================
-echo Р“РѕС‚РѕРІРѕ! РЎР»СѓР¶Р±Р° Р·Р°РїСѓС‰РµРЅР°.
+echo Готово! Служба запущена.
 echo ========================================
 
 endlocal
