@@ -4,7 +4,7 @@
   "Port": 7778,
   "LmStudioPort": 1234,
   "VerboseLogging": false,
-  "LmStudioServerAutoStart": false,
+  "LmStudioServerAutoStart": true,
   "BindAddress": "0.0.0.0",
   "LmStudioLoadedModel": "",
   "LmStudioModelDefaultLoadParameter": {
