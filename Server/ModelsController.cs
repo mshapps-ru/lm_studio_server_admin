@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text.Json;
@@ -9,30 +10,43 @@ using LmStudioServerAdmin.Config;
 
 namespace LmStudioServerAdmin.Server
 {
+    // DTO for response with parameters
+    public class ModelEntryDto
+    {
+        public string Id { get; set; } = "";
+        public string Object { get; set; } = "";
+        public string Owned_by { get; set; } = "";
+        public Dictionary<string,int?> Parameters { get; set; } = new();
+    }
+
+
     public class ModelsController
     {
 public static void GetModels(HttpListenerContext ctx, AppConfig cfg)
         {
-
             var response = ctx.Response;
             response.StatusCode = (int)HttpStatusCode.OK;
             response.ContentType = "application/json";
-            var models = cfg.LmStudioModelList ?? new List<ModelInfo>();
 
-            // Ensure placeholder when empty
+            var baseModels = cfg.LmStudioModelList ?? new List<ModelInfo>();
+            var models = new List<ModelEntryDto>();
+            if (baseModels.Any())
+            {
+                foreach(var m in baseModels)
+                {
+                    var paramEntry = (cfg.LmStudioModelLoadParameterList?.FirstOrDefault(e=>string.Equals(e.Model,m.Id,StringComparison.OrdinalIgnoreCase)))?.Parameters;
+                    models.Add(new ModelEntryDto { Id = m.Id, Object = m.Object, Owned_by = m.Owned_by, Parameters = paramEntry ?? new Dictionary<string,int?>() });
+                }
+            }
+            else
+            {
+                models.Add(new ModelEntryDto { Id="placeholder", Object="model", Owned_by="unknown", Parameters=new Dictionary<string,int?>() });
+            }
+
             if (cfg.VerboseLogging)
             {
                 Logger.Info($"[GET] /api/models - current count: {models.Count}");
             }
-
-            if (models == null || models.Count == 0)
-                {
-                    // Fallback placeholder
-                    models = new List<ModelInfo>
-                    {
-                        new ModelInfo { Id = "placeholder", Object = "model", Owned_by = "unknown" }
-                    };
-                }
             var json = JsonSerializer.Serialize(new { models });
             using var writer = new StreamWriter(response.OutputStream, System.Text.Encoding.UTF8);
             writer.Write(json);

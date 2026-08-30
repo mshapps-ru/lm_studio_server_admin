@@ -64,7 +64,7 @@ const Models = {
         header.appendChild(paramTh);
         table.appendChild(header);
 
-        models.forEach(m => {
+        models.forEach((m,i) => {
             const row = document.createElement('tr');
             [m.Id, m.Object, m.Owned_by].forEach(val => {
                 const td = document.createElement('td');
@@ -78,6 +78,17 @@ const Models = {
             paramTd.appendChild(pre);
             row.appendChild(paramTd);
             table.appendChild(row);
+            // Add separator between rows (except after last)
+            if (i < models.length - 1) {
+                const sepRow = document.createElement('tr');
+                const sepCell = document.createElement('td');
+                sepCell.colSpan = 4;
+                const hr = document.createElement('hr');
+                hr.style.margin = '0';
+                sepCell.appendChild(hr);
+                sepRow.appendChild(sepCell);
+                table.appendChild(sepRow);
+            }
         });
         container.appendChild(table);
     }
