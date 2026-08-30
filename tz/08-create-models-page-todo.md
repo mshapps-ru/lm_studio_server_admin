@@ -1,94 +1,50 @@
-# TODO: Создание страницы управления моделями
+# To‑Do List: Create Models Page
 
-## Фаза 1: Backend — Модели данных
+## ✅ 1. API Design & Backend Logic
+- **GET** `/api/models/list` – Return the current list of models, their load parameters, and default load parameters.
+- **POST** `/api/models/save-parameters` – Accept a payload with updated `LmStudioModelLoadParameterList` and/or `LmStudioModelDefaultLoadParameter`. Validate, write to `config.json`, and return success status.
 
-- [ ] **1.1** Обновить `Config/AppConfig.cs`:
-  - [ ] Добавить enum `ParameterType` (Int, Double, Bool, String)
-  - [ ] Добавить класс `ModelParameter` (Value: string, Type: ParameterType)
-  - [ ] Изменить `Parameters` в `ModelLoadParametersEntry` на `Dictionary<string, ModelParameter>?`
-  - [ ] Изменить `LmStudioModelDefaultLoadParameter` на `Dictionary<string, ModelParameter>?`
-  - [ ] Добавить helper-методы для конвертации типов
-  - [ ] Добавить метод `MigrateConfig()` для обратной совместимости со старым форматом int?
+## ✅ 2. Route Registration
+- Add the new endpoints in the appropriate controller (e.g., `SettingsController`).
+- Ensure that only authenticated users can access these routes.
 
-## Фаза 2: Backend — Команды
+## ✅ 3. Front‑end Page Creation
+- Create a new page under `wwwroot/` – e.g., `models.html` and corresponding JS (`models.js`).
+- Add navigation link from the main menu.
+- Use fetch API to call `/api/models/list` on load.
+- Render a table or list showing:
+  - Model name
+  - Current load parameters
+  - Edit button for each model
+  - Button to edit default parameters
 
-- [ ] **2.1** Обновить `Commands/LmsCommandExecutor.cs`:
-  - [ ] Добавить публичный метод `UnloadModelPublic(string modelName)` для выгрузки конкретной модели
-  - [ ] Либо сделать существующий приватный `UnloadModel` публичным
+## ✅ 4. Editing UI & Form Handling
+- For each model, provide an inline form or modal dialog that allows the user to modify the JSON parameters.
+- Provide a separate form for editing `LmStudioModelDefaultLoadParameter`.
+- Validate input on the client side before sending.
 
-## Фаза 3: Backend — Контроллер
+## ✅ 5. Persisting Changes to `config.json`
+- Backend receives POST, validates structure and types, then writes atomically back to `config.json` using `ConfigManager` or direct file write.
+- Ensure that concurrent edits are handled (e.g., by locking the file during write).
 
-- [ ] **3.1** Создать `Server/ModelController.cs`:
-  - [ ] GET `/api/models` — получить список моделей
-  - [ ] GET `/api/models/parameters/default` — получить дефолтные параметры
-  - [ ] PUT `/api/models/parameters/default` — сохранить дефолтные параметры
-  - [ ] GET `/api/models/parameters/{modelName}` — получить параметры модели
-  - [ ] PUT `/api/models/parameters/{modelName}` — сохранить параметры модели
-  - [ ] POST `/api/models/{modelName}/load` — загрузить модель
-  - [ ] POST `/api/models/{modelName}/unload` — выгрузить модель
-  - [ ] POST `/api/models/refresh` — обновить список моделей из LM Studio
+## ✅ 6. Input Validation & Error Handling
+- Server‑side: JSON schema validation for both lists and default parameters.
+- Client‑side: Show user-friendly error messages if validation fails.
 
-## Фаза 4: Backend — Маршрутизация
+## ✅ 7. Unit / Integration Tests
+- Mock `config.json` and test GET returns correct data.
+- Test POST with valid data updates the file correctly; test invalid data returns appropriate errors.
 
-- [ ] **4.1** Обновить `Server/HttpServer.cs`:
-  - [ ] Добавить маршруты для всех new endpoints из ModelController
-  - [ ] Обработать path parameters для `{modelName}` в URL
-  - [ ] Добавить логирование запросов к новым endpoints
+## ✅ 8. Documentation Updates
+- Add a section in `docs/areas/backend-api-structure.md` explaining the new endpoints.
+- Update any relevant README or quick‑start docs.
 
-## Фаза 5: Frontend — HTML
+## ✅ 9. Deployment & Verification
+- Restart the server.
+- Navigate to `/models.html`, confirm data loads.
+- Edit parameters, save, and verify that `config.json` is updated and changes persist after restart.
 
-- [ ] **5.1** Обновить `wwwroot/index.html`:
-  - [ ] Добавить кнопку вкладки `<button class="tab" data-tab="models">Models</button>`
-  - [ ] Добавить контейнер `<div id="models-tab" class="tab-content">` с:
-    - [ ] Карточкой списка моделей с кнопкой "Refresh"
-    - [ ] Карточкой дефолтных параметров
-  - [ ] Добавить `<script src="/js/models.js"></script>` в body
-
-## Фаза 6: Frontend — JavaScript
-
-- [ ] **6.1** Создать `wwwroot/js/models.js`:
-  - [ ] Объект `Models` с методом `init()`
-  - [ ] Метод `loadModels()` — загрузка списка из `/api/models`
-  - [ ] Метод `renderModelsList(models)` — рендеринг карточек моделей
-  - [ ] Метод `loadModelParameters(modelName)` — загрузка параметров
-  - [ ] Метод `renderModelParameters(modelName, parameters)` — рендеринг редактора
-  - [ ] Метод `loadDefaultParameters()` — загрузка дефолтных
-  - [ ] Метод `renderDefaultParameters(parameters)` — рендеринг редактора
-  - [ ] Метод `saveModelParameters(modelName)` — сохранение параметров модели
-  - [ ] Метод `saveDefaultParameters()` — сохранение дефолтных
-  - [ ] Метод `loadModel(modelName)` — вызов Load API
-  - [ ] Метод `unloadModel(modelName)` — вызов Unload API
-  - [ ] Метод `refreshModels()` — обновление списка
-  - [ ] Функция добавления/удаления параметров в редакторе
-  - [ ] Обработка разных типов параметров (int, double, bool, string)
-
-- [ ] **6.2** Обновить `wwwroot/js/app.js`:
-  - [ ] Добавить вызов `Models.init()` в метод `showApp()`
-
-## Фаза 7: Frontend — CSS
-
-- [ ] **7.1** Обновить `wwwroot/css/style.css`:
-  - [ ] Стили для `.model-card`
-  - [ ] Стили для `.model-header`, `.model-owned-by`
-  - [ ] Стили для `.model-actions`
-  - [ ] Стили для `.param-row`
-  - [ ] Стили для редактора параметров
-  - [ ] Стили для кнопки удаления параметра
-  - [ ] Стили для loading spinner
-
-## Фаза 8: Тестирование и документация
-
-- [ ] **8.1** Тестирование:
-  - [ ] Проверить загрузку списка моделей
-  - [ ] Проверить отображение параметров для каждой модели
-  - [ ] Проверить редактирование и сохранение параметров модели
-  - [ ] Проверить редактирование и сохранение дефолтных параметров
-  - [ ] Проверить кнопки Load/Unload
-  - [ ] Проверить кнопку обновления списка
-  - [ ] Проверить обратную совместимость с существующим config.json
-  - [ ] Проверить работу с разными типами параметров
-  - [ ] Проверить обработку ошибок
-
-- [ ] **8.2** Документация:
-  - [ ] Обновить `docs/areas/backend-api-structure.md` с новыми endpoints
-  - [ ] Запустить `@docs-maintainer обнови docs`
+## ✅ 10. Refactor & Clean‑up
+- Extract reusable logic into services if needed.
+- Ensure code follows project coding standards.
+- Commit all changes with appropriate commit messages.
