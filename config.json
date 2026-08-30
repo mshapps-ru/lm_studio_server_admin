@@ -1,7 +1,29 @@
-{
-    "username": "admin",
-    "password": "admin",
-    "port": 7778,
-    "lmStudioPort": 1234,
-    "bindAddress": "0.0.0.0"
+﻿{
+  "Username": "admin",
+  "Password": "admin",
+  "Port": 7778,
+  "LmStudioPort": 1234,
+  "VerboseLogging": false,
+  "LmStudioServerAutoStart": false,
+  "BindAddress": "0.0.0.0",
+  "LmStudioLoadedModel": "",
+  "LmStudioModelDefaultLoadParameter": {
+    "contextWindow": 10000,
+    "ttl": 300
+  },
+  "LmStudioModelLoadParameterList": [
+    {
+      "Model": "gpt-oss-20b",
+      "Parameters": {
+        "contextWindow": 100000,
+        "ttl": 1200
+      }
+    },
+    {
+      "Model": "qwen/qwen3.8-27b",
+      "Parameters": {
+        "batchSize": 32
+      }
+    }
+  ]
 }

@@ -9,6 +9,7 @@ namespace LmStudioServerAdmin.Server;
 public class HttpServer : IDisposable
 {
     private readonly HttpListener _listener;
+    private readonly string _wwwRoot;
     private readonly AppConfig _config;
     private bool _running;
     private Thread? _thread;
@@ -22,6 +23,10 @@ public class HttpServer : IDisposable
         var prefix = $"http://{(config.BindAddress == "0.0.0.0" ? "+" : config.BindAddress)}:{config.Port}/";
         _listener.Prefixes.Add(prefix);
         Logger.Info($"HttpServer configured on {config.BindAddress}:{config.Port}");
+        // Determine wwwroot relative to executable location
+        var exeDir = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location) ?? AppDomain.CurrentDomain.BaseDirectory;
+        _wwwRoot = Path.GetFullPath(Path.Combine(exeDir, "wwwroot"));
+        Logger.Info($"Resolved wwwroot: {_wwwRoot}");
     }
 
     public void Start()
@@ -192,14 +197,15 @@ public class HttpServer : IDisposable
             // Static files
             if (path == "/" || path == "/index.html")
             {
-                var indexPath = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "wwwroot", "index.html"));
+                var indexPath = Path.Combine(_wwwRoot, "index.html");
+                Logger.Info($"Serving index from: {indexPath}");
                 ServeFile(context, "text/html", indexPath);
                 return;
             }
 
             if (path.StartsWith("/css/"))
             {
-                var cssPath = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "wwwroot", "css", path.Substring(5)));
+                var cssPath = Path.Combine(_wwwRoot, "css", path.Substring(5));
                 if (File.Exists(cssPath))
                     ServeFile(context, "text/css", cssPath);
                 else
@@ -209,7 +215,7 @@ public class HttpServer : IDisposable
 
             if (path.StartsWith("/js/"))
             {
-                var jsPath = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "wwwroot", "js", path.Substring(4)));
+                var jsPath = Path.Combine(_wwwRoot, "js", path.Substring(4));
                 if (File.Exists(jsPath))
                     ServeFile(context, "application/javascript", jsPath);
                 else
@@ -303,8 +309,10 @@ public class HttpServer : IDisposable
         try
         {
             var fullpath = Path.GetFullPath(filePath);
+            Logger.Info($"Attempting to serve file: {fullpath}");
             if (!File.Exists(fullpath))
             {
+                Logger.Warning("File not found: " + fullpath);
                 SendNotFound(context);
                 return;
             }

@@ -15,8 +15,13 @@ public static class ConfigManager
 
     static ConfigManager()
     {
-        var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-        _configFilePath = Path.Combine(baseDir, "config.json");
+        // Determine the directory of the executing assembly (exe/dll)
+        var exeDir = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+        if (!string.IsNullOrEmpty(exeDir))
+            _configFilePath = Path.Combine(exeDir, "config.json");
+        else
+            // Fallback to AppDomain base directory if reflection fails
+            _configFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.json");
     }
 
     public static AppConfig Load()
