@@ -37,6 +37,7 @@
 
         <nav class="tabs">
             <button class="tab active" data-tab="home">Home</button>
+            <button class="tab" data-tab="models">Models</button>
             <button class="tab" data-tab="settings">Settings</button>
         </nav>
 
@@ -89,7 +90,7 @@
                             <label for="settings-password-confirm">Confirm Password</label>
                             <input type="password" id="settings-password-confirm" name="passwordConfirm">
                         </div>
-                        <button type="submit" class="btn btn-primary">Save Password</button>
+                        <button type="submit" class="btn btn-primary">Save</button>
                     </form>
                 </div>
 
@@ -129,6 +130,10 @@
                     </form>
                 </div>
             </div>
+            <!-- Models Tab -->
+            <div id="models-tab" class="tab-content">
+                <!-- Content will be injected by models.js -->
+            </div>
         </main>
     </div>
 
@@ -139,5 +144,6 @@
     <script src="/js/auth.js"></script>
     <script src="/js/home.js"></script>
     <script src="/js/settings.js"></script>
+<script src="/js/models.js"></script>
 </body>
 </html>

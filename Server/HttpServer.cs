@@ -3,6 +3,7 @@ using System.Text;
 using LmStudioServerAdmin.Commands;
 using LmStudioServerAdmin.Config;
 using LmStudioServerAdmin.Logging;
+using System.Text.RegularExpressions;
 
 namespace LmStudioServerAdmin.Server;
 
@@ -149,11 +150,29 @@ public class HttpServer : IDisposable
             }
 
             // LM Studio Info
-            if (path == "/api/lmstudio/info" && method == "GET")
+if (path == "/api/lmstudio/info" && method == "GET")
+{
+    HomeController.GetLmStudioInfo(context, _config);
+    return;
+}
+// Models API
+            if (path == "/api/models" && method == "GET")
             {
-                HomeController.GetLmStudioInfo(context, _config);
+                ModelsController.GetModels(context, _config);
                 return;
             }
+            else if (path == "/api/models/default" && method == "POST")
+            {
+                ModelsController.PostDefaults(context, _config);
+                return;
+            }
+            else if (System.Text.RegularExpressions.Regex.IsMatch(path, @"^/api/models/(?<model>[^/]+)/override$") && method == "PUT")
+            {
+                var match = System.Text.RegularExpressions.Regex.Match(path, @"^/api/models/(?<model>[^/]+)/override$");
+                ModelsController.PutOverride(context, match.Groups["model"].Value, _config);
+                return;
+            }
+
 
             // Settings API
             if (path == "/api/settings" && method == "GET")

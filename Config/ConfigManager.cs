@@ -16,11 +16,16 @@ public static class ConfigManager
     static ConfigManager()
     {
         // Determine the directory of the executing assembly (exe/dll)
+        // Determine config file path relative to application root (where executable is)
         var exeDir = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
-        if (!string.IsNullOrEmpty(exeDir))
+        // Prefer config.json in project root if exists
+        var possibleRoot = AppDomain.CurrentDomain.BaseDirectory;
+        string rootConfigPath = Path.Combine(possibleRoot, "config.json");
+        if (File.Exists(rootConfigPath))
+            _configFilePath = rootConfigPath;
+        else if (!string.IsNullOrEmpty(exeDir))
             _configFilePath = Path.Combine(exeDir, "config.json");
         else
-            // Fallback to AppDomain base directory if reflection fails
             _configFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.json");
     }
 
@@ -51,7 +56,7 @@ public static class ConfigManager
             Logger.Error($"Error loading config: {ex.Message}", ex);
             Logger.Info("Creating config with defaults");
             var defaultConfig = new AppConfig();
-            Save(defaultConfig);
+            //Save(defaultConfig);
             return defaultConfig;
         }
     }

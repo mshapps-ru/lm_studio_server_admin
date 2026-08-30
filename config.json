@@ -1,9 +1,9 @@
 ﻿{
   "Username": "admin",
-  "Password": "admin",
+  "Password": "jGl25bVBBBW96Qi9Te4V37Fnqchz/Eu4qB9vKrRIqRg=",
   "Port": 7778,
   "LmStudioPort": 1234,
-  "VerboseLogging": false,
+  "VerboseLogging": true,
   "LmStudioServerAutoStart": true,
   "BindAddress": "0.0.0.0",
   "LmStudioLoadedModel": "",

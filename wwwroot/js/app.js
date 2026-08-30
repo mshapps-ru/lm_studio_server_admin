@@ -63,6 +63,7 @@ const App = {
         }
         Home.init();
         Settings.init();
+        Models.init();
     },
 
     setupTabs() {

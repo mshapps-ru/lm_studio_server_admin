@@ -3,6 +3,8 @@ using LmStudioServerAdmin.Config;
 using LmStudioServerAdmin.Logging;
 using LmStudioServerAdmin.Server;
 using LmStudioServerAdmin.Service;
+using System.Net.Http;
+using System.Text.Json;
 
 namespace LmStudioServerAdmin;
 
@@ -136,7 +138,7 @@ public static class Program
         _httpServer = new HttpServer(_config!);
         _httpServer.Start();
             // Start model list updater
-            _modelListUpdater = new ModelListUpdater(_config!.LmStudioPort, TimeSpan.FromMinutes(5));
+            _modelListUpdater = new ModelListUpdater(_config!.LmStudioPort, TimeSpan.FromMinutes(1));
 
         // Запуск проверки статуса
         _statusChecker = new StatusChecker(status =>
@@ -147,6 +149,7 @@ public static class Program
         // Первоначальная проверка статуса и автоопределение порта
         LmsCommandExecutor.GetStatus();
         LmsCommandExecutor.TryAutoDetectLmStudioPort();
+        LoadInitialModelList();
     }
 
     public static void RestartServices()
@@ -163,4 +166,50 @@ public static class Program
         _httpServer?.Dispose();
         Logger.Info("Shutdown complete");
     }
+
+    private static void LoadInitialModelList()
+    {
+        var cfg = _config!;
+        if (cfg.LmStudioModelList != null && cfg.LmStudioModelList.Count > 0)
+            return;
+        try
+        {
+            using var client = new HttpClient();
+            var url = $"http://localhost:{cfg.LmStudioPort}/v1/models";
+            var resp = client.GetAsync(url).Result;
+            if (resp.IsSuccessStatusCode)
+            {
+                var json = resp.Content.ReadAsStringAsync().Result;
+                using var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.TryGetProperty("data", out var arr))
+                {
+                    var list = new List<ModelInfo>();
+                    foreach (var item in arr.EnumerateArray())
+                    {
+                        var model = new ModelInfo
+                        {
+                            Id = item.GetProperty("id").GetString() ?? string.Empty,
+                            Object = item.GetProperty("object").GetString() ?? string.Empty,
+                            Owned_by = item.TryGetProperty("owned_by", out var owned) ? (owned.GetString() ?? string.Empty) : string.Empty
+                        };
+                        list.Add(model);
+                    }
+                    if (cfg != null)
+                    {
+                        cfg.LmStudioModelList = list;
+                        ConfigManager.Save(cfg);
+                    }
+                    else
+                    {
+                        Logger.Error("Attempted to set model list but config is null.");
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"Failed to load initial model list: {ex.Message}", ex);
+        }
+    }
+
 }

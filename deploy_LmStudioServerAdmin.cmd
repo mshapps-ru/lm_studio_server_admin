@@ -2,6 +2,8 @@
 chcp 1251 >nul
 setlocal
 
+cls
+
 taskkill /F /IM LmStudioServerAdmin.exe 
 d:
 cd D:\WorkHome\T3Code\lm_studio_server_admin
